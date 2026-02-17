@@ -1,0 +1,144 @@
+ESTRUCTURA DEL PROYECTO - Servicio APIs BioTime
+================================================
+
+Servicio-APIs-BioTime/
+│
+├── 📁 app/                              # Código fuente principal
+│   ├── __init__.py
+│   ├── main.py                          # 🚀 Punto de entrada de la aplicación
+│   │
+│   ├── 📁 api/                          # Capa de Presentación (Controllers)
+│   │   ├── __init__.py
+│   │   ├── dependencies.py              # Inyección de dependencias FastAPI
+│   │   └── 📁 v1/                       # API versión 1
+│   │       ├── __init__.py
+│   │       ├── router.py                # Router principal v1
+│   │       └── 📁 routes/               # Endpoints por recurso
+│   │           ├── __init__.py
+│   │           └── employees.py         # ✅ Endpoints de empleados
+│   │
+│   ├── 📁 core/                         # Configuración y utilidades core
+│   │   ├── __init__.py
+│   │   ├── config.py                    # ⚙️ Configuración centralizada
+│   │   ├── logging.py                   # 📝 Setup de logging
+│   │   └── exceptions.py                # ⚠️ Excepciones personalizadas
+│   │
+│   ├── 📁 schemas/                      # DTOs / Modelos Pydantic
+│   │   ├── __init__.py
+│   │   ├── responses.py                 # Respuestas estándar
+│   │   └── 📁 biotime/                  # Schemas de BioTime
+│   │       ├── __init__.py
+│   │       ├── auth.py                  # 🔐 LoginRequest, LoginResponse
+│   │       ├── employee.py              # 👤 EmployeeDto
+│   │       └── common.py                # 📄 PaginatedResponse
+│   │
+│   ├── 📁 services/                     # Lógica de Negocio
+│   │   ├── __init__.py
+│   │   ├── 📁 interfaces/               # Contratos (SOLID - DIP)
+│   │   │   ├── __init__.py
+│   │   │   └── biotime_service.py       # 📋 IBioTimeService (interface)
+│   │   └── 📁 implementations/          # Implementaciones
+│   │       ├── __init__.py
+│   │       └── biotime_service.py       # ✅ BioTimeService (implementación)
+│   │
+│   ├── 📁 clients/                      # Clientes HTTP Externos
+│   │   ├── __init__.py
+│   │   └── biotime_client.py            # 🌐 Cliente HTTP para BioTime
+│   │
+│   └── 📁 utils/                        # Utilidades Compartidas
+│       ├── __init__.py
+│       └── http_helpers.py              # Helpers HTTP
+│
+├── 📁 tests/                            # Tests
+│   ├── __init__.py
+│   ├── 📁 unit/                         # Tests unitarios
+│   │   ├── __init__.py
+│   │   └── 📁 services/
+│   │       ├── __init__.py
+│   │       └── test_biotime_service.py
+│   └── 📁 integration/                  # Tests de integración
+│       ├── __init__.py
+│       └── test_biotime_api.py
+│
+├── 📁 venv/                             # Entorno virtual (no en git)
+│
+├── 📄 .env                              # Variables de entorno (no en git)
+├── 📄 .env.example                      # Ejemplo de configuración
+├── 📄 .gitignore                        # Archivos ignorados por git
+├── 📄 requirements.txt                  # Dependencias de producción
+├── 📄 requirements-dev.txt              # Dependencias de desarrollo
+├── 📄 pyproject.toml                    # Configuración de herramientas
+├── 📄 README.md                         # Documentación principal
+├── 📄 ARCHITECTURE.md                   # Documentación de arquitectura
+├── 📄 run.sh                            # Script de inicio (Linux/Mac)
+└── 📄 run.bat                           # Script de inicio (Windows)
+
+
+FLUJO DE DATOS
+==============
+
+HTTP Request (GET /api/v1/employees)
+    ↓
+[FastAPI Router] app/api/v1/routes/employees.py
+    ↓ Inyección de dependencias
+[Service Interface] app/services/interfaces/biotime_service.py
+    ↓ Implementación
+[Service] app/services/implementations/biotime_service.py
+    ↓ Llamada HTTP
+[HTTP Client] app/clients/biotime_client.py
+    ↓ JWT Auth
+[BioTime API] http://biotime-server/personnel/api/employees/
+    ↓ JSON Response
+[Pydantic Schemas] app/schemas/biotime/employee.py
+    ↓ Serialización
+HTTP Response (JSON)
+
+
+PRINCIPIOS SOLID APLICADOS
+===========================
+
+✅ Single Responsibility: Cada módulo tiene UNA responsabilidad
+✅ Open/Closed: Extensible mediante interfaces sin modificar código
+✅ Liskov Substitution: Implementaciones intercambiables
+✅ Interface Segregation: Interfaces específicas, no genéricas
+✅ Dependency Inversion: Dependencia de abstracciones, no detalles
+
+
+ENDPOINTS DISPONIBLES
+=====================
+
+Health:
+  GET  /health                          - Health check del servicio
+
+Empleados:
+  GET  /api/v1/employees                - Lista paginada de empleados
+       Query params: ?page=1&page_size=10
+
+Documentación:
+  GET  /api/v1/docs                     - Swagger UI
+  GET  /api/v1/redoc                    - ReDoc
+  GET  /api/v1/openapi.json             - Especificación OpenAPI
+
+
+COMANDOS ÚTILES
+===============
+
+Iniciar aplicación:
+  python -m app.main
+  # o
+  uvicorn app.main:app --reload
+
+Instalar dependencias:
+  pip install -r requirements.txt
+
+Tests:
+  pytest                                 # Todos los tests
+  pytest tests/unit                      # Solo unitarios
+  pytest tests/integration               # Solo integración
+  pytest --cov=app                       # Con cobertura
+
+Linting y formato:
+  black app/ tests/                      # Formatear código
+  isort app/ tests/                      # Ordenar imports
+  flake8 app/ tests/                     # Linting
+  mypy app/                              # Type checking

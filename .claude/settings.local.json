@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/app/core/config.py:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/app/core/exceptions.py:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/requirements.txt:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/requirements-dev.txt:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/.env.example:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/pyproject.toml:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/app/schemas/biotime/auth.py:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/app/schemas/biotime/employee.py:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/app/schemas/biotime/common.py:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/app/schemas/responses.py:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/app/services/interfaces/biotime_service.py:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/app/api/v1/routes/employees.py:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/app/api/v1/router.py:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/app/utils/http_helpers.py:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/app/schemas/biotime/__init__.py:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/tests/unit/services/test_biotime_service.py:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/tests/integration/test_biotime_api.py:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/run.sh:*)",
+      "Bash(chmod:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/run.bat:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/ARCHITECTURE.md:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/STRUCTURE.txt:*)",
+      "Bash(xargs:*)",
+      "Bash(wc:*)",
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/QUICK_START.md:*)"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+"""
+Router principal de la API v1.
+Incluye todos los routers de la versión 1 de la API.
+"""
+from fastapi import APIRouter
+
+from app.api.v1.routes import employees
+
+api_router = APIRouter()
+
+# Incluir routers de cada recurso
+api_router.include_router(employees.router)
