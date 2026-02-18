@@ -25,7 +25,9 @@
       "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/STRUCTURE.txt:*)",
       "Bash(xargs:*)",
       "Bash(wc:*)",
-      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/QUICK_START.md:*)"
+      "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/QUICK_START.md:*)",
+      "Bash(curl:*)",
+      "Bash(ip route:*)"
     ]
   }
 }
