@@ -3,7 +3,7 @@ Schemas comunes de BioTime.
 """
 from typing import Generic, List, Optional, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 T = TypeVar("T")
 
@@ -16,9 +16,8 @@ class PaginatedResponse(BaseModel, Generic[T]):
     previous: Optional[str] = Field(None, description="URL de la página anterior")
     data: List[T] = Field(default_factory=list, description="Datos de la página actual")
 
-    class Config:
-        """Configuración del modelo."""
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "count": 100,
                 "next": "http://api.example.com/employees/?page=2",
@@ -26,3 +25,4 @@ class PaginatedResponse(BaseModel, Generic[T]):
                 "data": [],
             }
         }
+    )

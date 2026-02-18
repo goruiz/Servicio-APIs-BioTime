@@ -3,7 +3,7 @@ Schemas de empleados de BioTime.
 """
 from typing import Optional, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DepartmentDto(BaseModel):
@@ -33,9 +33,8 @@ class EmployeeDto(BaseModel):
     position: Optional[Union[PositionDto, int]] = Field(None, description="Posición del empleado")
     hire_date: Optional[str] = Field(None, description="Fecha de contratación")
 
-    class Config:
-        """Configuración del modelo."""
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "id": 1,
                 "emp_code": "EMP001",
@@ -46,3 +45,4 @@ class EmployeeDto(BaseModel):
                 "hire_date": "2024-01-15",
             }
         }
+    )

@@ -27,7 +27,13 @@
       "Bash(wc:*)",
       "Bash(/mnt/c/Users/WALDO/Documents/Proyectos/Servicio-APIs-BioTime/QUICK_START.md:*)",
       "Bash(curl:*)",
-      "Bash(ip route:*)"
+      "Bash(ip route:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(pytest:*)",
+      "Bash(find:*)",
+      "Bash(while read dir:*)",
+      "Bash(do touch \"$dir/__init__.py\")",
+      "Bash(done)"
     ]
   }
 }
