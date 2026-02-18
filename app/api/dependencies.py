@@ -54,4 +54,4 @@ def obtener_servicio_marcaciones(
 
 # Type aliases para usar en los endpoints
 EmpleadoDependencia = Annotated[IEmpleado, Depends(obtener_servicio_empleados)]
-MarcacionesDependencia = Annotated[IMarcaciones, Depends(obtener_servicio_empleados)]
+MarcacionesDependencia = Annotated[IMarcaciones, Depends(obtener_servicio_marcaciones)]
