@@ -4,9 +4,9 @@ Tests unitarios para BioTimeService.
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from app.schemas.biotime.employee import EmployeeDto
+from app.schemas.empleado.respuesta_empleado import EmployeeDto
 from app.schemas.biotime.common import PaginatedResponse
-from app.services.biotime_service import BioTimeService
+from app.services.empleado.servicio_empleado import ServicioEmpleado
 
 
 @pytest.mark.asyncio
@@ -40,10 +40,10 @@ async def test_get_employees_success():
         ]
     })
     
-    service = BioTimeService(client=mock_client)
+    service = ServicioEmpleado(client=mock_client)
     
     # Act
-    result = await service.get_employees(page=1, page_size=10)
+    result = await service.obtener_empleados(page=1, page_size=10)
     
     # Assert
     assert isinstance(result, PaginatedResponse)
@@ -71,10 +71,10 @@ async def test_get_employees_empty():
         "data": []
     })
     
-    service = BioTimeService(client=mock_client)
+    service = ServicioEmpleado(client=mock_client)
     
     # Act
-    result = await service.get_employees(page=1, page_size=10)
+    result = await service.obtener_empleados(page=1, page_size=10)
     
     # Assert
     assert result.count == 0

@@ -7,8 +7,10 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.clients.biotime_client import BioTimeClient
-from app.services.biotime_service import BioTimeService
-from app.interfaces.interface_biotime_service import IBioTimeService
+from app.services.empleado.servicio_empleado import ServicioEmpleado
+from app.services.marcaciones.servicio_marcaciones import ServicioMarcaciones
+from app.interfaces.empleado.interface_empleado import IEmpleado
+from app.interfaces.marcaciones.interface_marcaciones import IMarcaciones
 
 
 def get_biotime_client() -> BioTimeClient:
@@ -21,9 +23,9 @@ def get_biotime_client() -> BioTimeClient:
     return BioTimeClient()
 
 
-def get_biotime_service(
+def obtener_servicio_empleados(
     client: Annotated[BioTimeClient, Depends(get_biotime_client)]
-) -> IBioTimeService:
+) -> IEmpleado:
     """
     Provee una instancia del servicio de BioTime.
 
@@ -33,8 +35,23 @@ def get_biotime_service(
     Returns:
         Servicio de BioTime
     """
-    return BioTimeService(client=client)
+    return ServicioEmpleado(client=client)
+
+def obtener_servicio_marcaciones(
+    client: Annotated[BioTimeClient, Depends(get_biotime_client)]
+) -> IMarcaciones:
+    """
+    Provee una instancia del servicio de BioTime.
+
+    Args:
+        client: Cliente de BioTime inyectado
+
+    Returns:
+        Servicio de BioTime
+    """
+    return ServicioMarcaciones(client=client)
 
 
 # Type aliases para usar en los endpoints
-BioTimeServiceDependencia = Annotated[IBioTimeService, Depends(get_biotime_service)]
+EmpleadoDependencia = Annotated[IEmpleado, Depends(obtener_servicio_empleados)]
+MarcacionesDependencia = Annotated[IMarcaciones, Depends(obtener_servicio_empleados)]

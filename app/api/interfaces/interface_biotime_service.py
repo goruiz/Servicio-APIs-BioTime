@@ -5,7 +5,7 @@ Define el contrato que debe cumplir cualquier implementación del servicio.
 from abc import ABC, abstractmethod
 
 from app.schemas.biotime.common import PaginatedResponse
-from app.schemas.biotime.employee import EmployeeDto
+from app.schemas.empleado.respuesta_empleado import EmployeeDto
 
 
 class IBioTimeService(ABC):
