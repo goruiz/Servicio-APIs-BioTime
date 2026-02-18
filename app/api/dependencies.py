@@ -7,8 +7,8 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.clients.biotime_client import BioTimeClient
-from app.services.implementations.biotime_service import BioTimeService
-from app.services.interfaces.biotime_service import IBioTimeService
+from app.services.biotime_service import BioTimeService
+from app.interfaces.interface_biotime_service import IBioTimeService
 
 
 def get_biotime_client() -> BioTimeClient:
@@ -37,4 +37,4 @@ def get_biotime_service(
 
 
 # Type aliases para usar en los endpoints
-BioTimeServiceDep = Annotated[IBioTimeService, Depends(get_biotime_service)]
+BioTimeServiceDependencia = Annotated[IBioTimeService, Depends(get_biotime_service)]

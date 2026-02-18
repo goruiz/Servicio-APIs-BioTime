@@ -6,7 +6,7 @@ from app.clients.biotime_client import BioTimeClient
 from app.core.logging import get_logger
 from app.schemas.biotime.common import PaginatedResponse
 from app.schemas.biotime.employee import EmployeeDto
-from app.services.interfaces.biotime_service import IBioTimeService
+from app.interfaces.interface_biotime_service import IBioTimeService
 
 logger = get_logger(__name__)
 

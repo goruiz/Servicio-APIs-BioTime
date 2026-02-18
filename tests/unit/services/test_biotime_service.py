@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from app.schemas.biotime.employee import EmployeeDto
 from app.schemas.biotime.common import PaginatedResponse
-from app.services.implementations.biotime_service import BioTimeService
+from app.services.biotime_service import BioTimeService
 
 
 @pytest.mark.asyncio

@@ -3,7 +3,7 @@ Endpoints de empleados.
 """
 from fastapi import APIRouter, HTTPException, Query
 
-from app.api.dependencies import BioTimeServiceDep
+from app.api.dependencies import BioTimeServiceDependencia
 from app.core.exceptions import BioTimeException
 from app.core.logging import get_logger
 from typing import List
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/employees", tags=["Employees"])
 
 @router.get("", response_model=List[EmployeeDto])
 async def get_employees(
-    service: BioTimeServiceDep,
+    service: BioTimeServiceDependencia,
     page: int = Query(default=1, ge=1, description="Número de página"),
     page_size: int = Query(default=10, ge=1, le=100, description="Tamaño de página"),
 ):
