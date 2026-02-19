@@ -7,10 +7,16 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.clients.biotime_client import BioTimeClient
-from app.services.empleado.servicio_empleado import ServicioEmpleado
-from app.services.marcaciones.servicio_marcaciones import ServicioMarcaciones
+from app.core.config import settings
 from app.interfaces.empleado.interface_empleado import IEmpleado
 from app.interfaces.marcaciones.interface_marcaciones import IMarcaciones
+from app.interfaces.sincronizacion.interface_sincronizacion import (
+    ISincronizacion,
+    SincronizacionDeshabilitada,
+)
+from app.services.empleado.servicio_empleado import ServicioEmpleado
+from app.services.marcaciones.servicio_marcaciones import ServicioMarcaciones
+from app.services.sincronizacion.servicio_sincronizacion import ServicioSincronizacion
 
 
 def get_biotime_client() -> BioTimeClient:
@@ -52,6 +58,20 @@ def obtener_servicio_marcaciones(
     return ServicioMarcaciones(client=client)
 
 
+def obtener_servicio_sincronizacion(
+    client: Annotated[BioTimeClient, Depends(get_biotime_client)]
+) -> ISincronizacion:
+    """
+    Devuelve ServicioSincronizacion si BIOTIME_SYNC_HABILITADO=True,
+    o SincronizacionDeshabilitada (Null Object) si está en False.
+    Para apagar la sincronización basta con cambiar el valor en .env.
+    """
+    if settings.BIOTIME_SYNC_HABILITADO:
+        return ServicioSincronizacion(client=client)
+    return SincronizacionDeshabilitada()
+
+
 # Type aliases para usar en los endpoints
 EmpleadoDependencia = Annotated[IEmpleado, Depends(obtener_servicio_empleados)]
 MarcacionesDependencia = Annotated[IMarcaciones, Depends(obtener_servicio_marcaciones)]
+SincronizacionDependencia = Annotated[ISincronizacion, Depends(obtener_servicio_sincronizacion)]

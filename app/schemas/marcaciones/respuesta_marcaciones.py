@@ -1,22 +1,23 @@
 """
-Schemas de empleados de BioTime.
+Schemas de marcaciones de BioTime.
 """
 from typing import Optional, Union
 
+from pydantic import Field
+
+from app.schemas.base import BaseDto
 from app.schemas.empleado.respuesta_empleado import EmployeeDto
-from pydantic import BaseModel, ConfigDict, Field
 
 
-
-class PositionDto(BaseModel):
-    """DTO de posición anidada en empleado."""
+class TerminalDto(BaseDto):
+    """DTO de terminal anidado en marcación."""
 
     id: int
     position_code: str = ""
     position_name: str = ""
 
 
-class MarcacionesDto(BaseModel):
+class MarcacionesDto(BaseDto):
     """DTO de marcaciones desde BioTime."""
 
     id: int = Field(..., description="ID de la marcación")
@@ -41,5 +42,4 @@ class MarcacionesDto(BaseModel):
     sync_status: Optional[int] = Field(None, description="Estado de sincronización")
     sync_time: Optional[str] = Field(None, description="Fecha y hora de sincronización")
     emp: Optional[Union[int, EmployeeDto]] = Field(None, description="Información del empleado")
-    terminal: Optional[PositionDto] = Field(None, description="Información del terminal")
- 
+    terminal: Optional[TerminalDto] = Field(None, description="Información del terminal")

@@ -1,12 +1,14 @@
 """
 Schemas de empleados de BioTime.
 """
-from typing import Optional, Union
+from typing import List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from app.schemas.base import BaseDto
 
 
-class DepartmentDto(BaseModel):
+class DepartmentDto(BaseDto):
     """DTO de departamento anidado en empleado."""
 
     id: int
@@ -14,7 +16,7 @@ class DepartmentDto(BaseModel):
     dept_name: str = ""
 
 
-class PositionDto(BaseModel):
+class PositionDto(BaseDto):
     """DTO de posición anidada en empleado."""
 
     id: int
@@ -22,7 +24,33 @@ class PositionDto(BaseModel):
     position_name: str = ""
 
 
-class EmployeeDto(BaseModel):
+class EmpleadoCreateUpdateDto(BaseDto):
+    """DTO para crear o actualizar un empleado en BioTime."""
+
+    emp_code: str = Field(..., description="Código único del empleado")
+    first_name: str = Field(..., description="Nombre del empleado")
+    last_name: str = Field(..., description="Apellido del empleado")
+    department: Optional[int] = Field(None, description="ID del departamento en BioTime")
+    position: Optional[int] = Field(None, description="ID del cargo/posición en BioTime")
+    area: List[int] = Field(default_factory=list, description="Lista de IDs de áreas (puede ser vacía)")
+    hire_date: Optional[str] = Field(None, description="Fecha de contratación (YYYY-MM-DD)")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "empCode": "EMP001",
+                "firstName": "Juan",
+                "lastName": "Pérez",
+                "department": 1,
+                "position": 2,
+                "area": [],
+                "hireDate": "2024-01-15",
+            }
+        }
+    )
+
+
+class EmployeeDto(BaseDto):
     """DTO de empleado desde BioTime."""
 
     id: int = Field(..., description="ID del empleado")
@@ -37,12 +65,12 @@ class EmployeeDto(BaseModel):
         json_schema_extra={
             "example": {
                 "id": 1,
-                "emp_code": "EMP001",
-                "first_name": "Juan",
-                "last_name": "Pérez",
-                "department": {"id": 1, "dept_code": "IT", "dept_name": "Tecnología"},
-                "position": {"id": 2, "position_code": "DEV", "position_name": "Desarrollador"},
-                "hire_date": "2024-01-15",
+                "empCode": "EMP001",
+                "firstName": "Juan",
+                "lastName": "Pérez",
+                "department": {"id": 1, "deptCode": "IT", "deptName": "Tecnología"},
+                "position": {"id": 2, "positionCode": "DEV", "positionName": "Desarrollador"},
+                "hireDate": "2024-01-15",
             }
         }
     )

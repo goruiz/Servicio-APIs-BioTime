@@ -3,10 +3,12 @@ Schemas de respuestas estándar de la API.
 """
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from app.schemas.base import BaseDto
 
 
-class ErrorResponse(BaseModel):
+class ErrorResponse(BaseDto):
     """Respuesta de error estándar."""
 
     error: str = Field(..., description="Mensaje de error")
@@ -14,7 +16,7 @@ class ErrorResponse(BaseModel):
     status_code: int = Field(..., description="Código de estado HTTP")
 
 
-class SuccessResponse(BaseModel):
+class SuccessResponse(BaseDto):
     """Respuesta exitosa estándar."""
 
     message: str = Field(..., description="Mensaje de éxito")

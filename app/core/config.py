@@ -2,7 +2,7 @@
 Configuración central de la aplicación.
 Maneja variables de entorno y configuraciones globales.
 """
-from typing import List
+from typing import List, Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -36,6 +36,15 @@ class Settings(BaseSettings):
     BIOTIME_USERNAME: str = Field(..., description="Usuario de BioTime")
     BIOTIME_PASSWORD: str = Field(..., description="Contraseña de BioTime")
     BIOTIME_TIMEOUT: int = Field(default=30, description="Timeout en segundos")
+
+    # Formato de respuesta JSON
+    API_RESPONSE_CASE: Literal["camel", "snake"] = Field(
+        default="camel",
+        description="Formato de las claves en las respuestas JSON: 'camel' (empCode) o 'snake' (emp_code)",
+    )
+
+    # Sincronización de terminales biométricos
+    BIOTIME_SYNC_HABILITADO: bool = Field(default=True, description="Habilita la sincronización automática tras operaciones de escritura")
 
     # Logging
     LOG_LEVEL: str = "INFO"

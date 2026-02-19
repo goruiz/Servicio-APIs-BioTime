@@ -5,14 +5,14 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.api.dependencias import MarcacionesDependencia
+from app.api.dependencias import MarcacionesDependencia, SincronizacionDependencia
 from app.core.exceptions import BioTimeException
 from app.core.logging import get_logger
-
 from app.schemas.marcaciones.respuesta_marcaciones import MarcacionesDto
+from app.utils.routing import ConfigurableAliasRoute
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/marcaciones", tags=["Marcaciones"])
+router = APIRouter(prefix="/marcaciones", tags=["Marcaciones"], route_class=ConfigurableAliasRoute)
 
 
 @router.get("", response_model=List[MarcacionesDto])
@@ -108,6 +108,7 @@ async def obtener_marcaciones_por_empleado(
 @router.delete("/por-filtro")
 async def eliminar_marcaciones(
     service: MarcacionesDependencia,
+    sincronizacion: SincronizacionDependencia,
     codigo_empleado: Optional[str] = Query(default=None, description="Código de empleado (emp_code en BioTime)"),
     fecha_inicio: Optional[str] = Query(default=None, description="Fecha de inicio del rango (ej: 2024-01-01 00:00:00)"),
     fecha_fin: Optional[str] = Query(default=None, description="Fecha de fin del rango (ej: 2024-01-31 23:59:59)"),
@@ -138,6 +139,7 @@ async def eliminar_marcaciones(
             fecha_inicio=fecha_inicio,
             fecha_fin=fecha_fin,
         )
+        await sincronizacion.sincronizar()
         return {"message": "Marcaciones eliminadas exitosamente", "eliminadas": eliminadas}
 
     except BioTimeException as e:
@@ -162,6 +164,7 @@ async def eliminar_marcaciones(
 @router.delete("/por-id")
 async def eliminar_marcaciones_por_id(
     service: MarcacionesDependencia,
+    sincronizacion: SincronizacionDependencia,
     id_marcacion: str = Query(..., description="ID de la marcación")
 ):
     """
@@ -180,6 +183,7 @@ async def eliminar_marcaciones_por_id(
     try:
         logger.info("DELETE /marcaciones/por-id", id_marcacion=id_marcacion)
         await service.eliminar_marcaciones_por_id(id_marcacion=id_marcacion)
+        await sincronizacion.sincronizar()
         return {"message": "Marcación eliminada exitosamente", "id": id_marcacion}
 
     except BioTimeException as e:

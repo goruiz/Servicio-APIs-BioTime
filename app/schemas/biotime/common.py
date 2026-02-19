@@ -3,12 +3,14 @@ Schemas comunes de BioTime.
 """
 from typing import Generic, List, Optional, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from app.schemas.base import BaseDto
 
 T = TypeVar("T")
 
 
-class PaginatedResponse(BaseModel, Generic[T]):
+class PaginatedResponse(BaseDto, Generic[T]):
     """Respuesta paginada genérica desde BioTime."""
 
     count: int = Field(..., description="Número total de registros")

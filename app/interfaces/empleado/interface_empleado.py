@@ -5,7 +5,7 @@ Define el contrato que debe cumplir cualquier implementación del servicio.
 from abc import ABC, abstractmethod
 
 from app.schemas.biotime.common import PaginatedResponse
-from app.schemas.empleado.respuesta_empleado import EmployeeDto
+from app.schemas.empleado.respuesta_empleado import EmpleadoCreateUpdateDto, EmployeeDto
 
 
 class IEmpleado(ABC):
@@ -29,4 +29,24 @@ class IEmpleado(ABC):
             BioTimeAuthenticationError: Si hay error de autenticación
             BioTimeConnectionError: Si hay error de conexión
         """
+        pass
+
+    @abstractmethod
+    async def obtener_empleado_por_id(self, empleado_id: int) -> EmployeeDto:
+        """Obtiene un empleado por su ID interno de BioTime."""
+        pass
+
+    @abstractmethod
+    async def crear_empleado(self, datos: EmpleadoCreateUpdateDto) -> EmployeeDto:
+        """Crea un nuevo empleado en BioTime. Devuelve el empleado creado."""
+        pass
+
+    @abstractmethod
+    async def actualizar_empleado(self, empleado_id: int, datos: EmpleadoCreateUpdateDto) -> EmployeeDto:
+        """Reemplaza todos los datos de un empleado (PUT). Devuelve el empleado actualizado."""
+        pass
+
+    @abstractmethod
+    async def eliminar_empleado(self, empleado_id: int) -> None:
+        """Elimina un empleado por su ID interno de BioTime."""
         pass
