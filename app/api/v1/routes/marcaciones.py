@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.api.dependencies import MarcacionesDependencia
+from app.api.dependencias import MarcacionesDependencia
 from app.core.exceptions import BioTimeException
 from app.core.logging import get_logger
 
@@ -98,6 +98,49 @@ async def obtener_marcaciones_por_empleado(
 
     except Exception as e:
         logger.error("Error inesperado al obtener marcaciones por código de empleado", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Error interno del servidor", "detail": str(e)},
+        )
+
+
+
+@router.delete("/por-id")
+async def eliminar_marcaciones_por_id(
+    service: MarcacionesDependencia,
+    id_marcacion: str = Query(..., description="ID de la marcación")
+):
+    """
+    Elimina las marcaciones de un empleado desde BioTime.
+
+    Args:
+        service: Servicio de BioTime inyectado
+        codigo_empleado: Código del empleado
+
+    Returns:
+        Lista de marcaciones por empleado
+
+    Raises:
+        HTTPException: Si hay error al obtener los marcaciones por empleado
+    """
+    try:
+        logger.info("DELETE /marcaciones/por-id", id_marcacion=id_marcacion)
+        await service.eliminar_marcaciones_por_id(id_marcacion=id_marcacion)
+        return {"message": "Marcación eliminada exitosamente", "id": id_marcacion}
+
+    except BioTimeException as e:
+        logger.error(
+            "Error de BioTime al eliminar marcaciones por ID de maración",
+            error=e.message,
+            status_code=e.status_code,
+        )
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={"error": e.message, "status_code": e.status_code},
+        )
+
+    except Exception as e:
+        logger.error("Error inesperado al eliminar marcaciones por ID de marcación", error=str(e))
         raise HTTPException(
             status_code=500,
             detail={"error": "Error interno del servidor", "detail": str(e)},

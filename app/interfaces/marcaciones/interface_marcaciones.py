@@ -51,3 +51,23 @@ class IMarcaciones(ABC):
             BioTimeConnectionError: Si hay error de conexión
         """
         pass
+
+    @abstractmethod
+    async def eliminar_marcaciones_por_id(
+        self, id_marcacion: str
+    ) -> None:
+        """
+        Elimina las marcaciones de un empleado desde BioTime.
+
+        Args:
+            page: Número de página (inicia en 1)
+            page_size: Cantidad de registros por página
+
+        Returns:
+            PaginatedResponse con la lista de marcaciones
+
+        Raises:
+            BioTimeAuthenticationError: Si hay error de autenticación
+            BioTimeConnectionError: Si hay error de conexión
+        """
+        pass

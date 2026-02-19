@@ -3,7 +3,7 @@ Endpoints de empleados.
 """
 from fastapi import APIRouter, HTTPException, Query
 
-from app.api.dependencies import EmpleadoDependencia
+from app.api.dependencias import EmpleadoDependencia
 from app.core.exceptions import BioTimeException
 from app.core.logging import get_logger
 from typing import List
