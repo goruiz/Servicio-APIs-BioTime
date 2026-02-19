@@ -71,3 +71,30 @@ class IMarcaciones(ABC):
             BioTimeConnectionError: Si hay error de conexión
         """
         pass
+
+    @abstractmethod
+    async def eliminar_marcaciones(
+        self,
+        codigo_empleado: Optional[str] = None,
+        fecha_inicio: Optional[str] = None,
+        fecha_fin: Optional[str] = None,
+    ) -> int:
+        """
+        Elimina marcaciones filtrando por empleado y/o rango de fechas.
+
+        Obtiene todos los IDs que coincidan con los filtros (paginando internamente)
+        y los elimina uno a uno.
+
+        Args:
+            codigo_empleado: Código del empleado en BioTime (emp_code). Opcional.
+            fecha_inicio: Límite inferior del rango (ej: '2024-01-01 00:00:00'). Opcional.
+            fecha_fin: Límite superior del rango (ej: '2024-01-31 23:59:59'). Opcional.
+
+        Returns:
+            Número de marcaciones eliminadas.
+
+        Raises:
+            BioTimeAuthenticationError: Si hay error de autenticación
+            BioTimeConnectionError: Si hay error de conexión
+        """
+        pass

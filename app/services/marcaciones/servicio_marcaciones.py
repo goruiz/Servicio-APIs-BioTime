@@ -90,3 +90,53 @@ class ServicioMarcaciones(IMarcaciones):
         logger.info("Eliminando marcación por ID", id=id_marcacion)
         await self._client.delete(f"iclock/api/transactions/{id_marcacion}/")
         logger.info("Marcación eliminada exitosamente", id=id_marcacion)
+
+    async def eliminar_marcaciones(
+        self,
+        codigo_empleado: Optional[str] = None,
+        fecha_inicio: Optional[str] = None,
+        fecha_fin: Optional[str] = None,
+    ) -> int:
+        """
+        Elimina marcaciones filtrando por empleado y/o rango de fechas.
+
+        Pagina el GET de BioTime para recolectar todos los IDs que coincidan
+        con los filtros y los elimina uno a uno.
+        """
+        logger.info(
+            "Iniciando eliminación masiva de marcaciones",
+            codigo_empleado=codigo_empleado,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+        )
+
+        # Construir parámetros de filtro para el GET
+        params: dict = {"page_size": 100}
+        if codigo_empleado is not None:
+            params["emp_code"] = codigo_empleado
+        if fecha_inicio is not None:
+            params["start_time"] = fecha_inicio
+        if fecha_fin is not None:
+            params["end_time"] = fecha_fin
+
+        # Paginar para recolectar todos los IDs que coincidan
+        ids_a_eliminar: list[int] = []
+        page = 1
+        while True:
+            params["page"] = page
+            response_data = await self._client.get("iclock/api/transactions/", params=params)
+            data = response_data.get("data", [])
+            ids_a_eliminar.extend(item["id"] for item in data)
+
+            if not response_data.get("next"):
+                break
+            page += 1
+
+        logger.info("IDs recolectados para eliminar", total=len(ids_a_eliminar))
+
+        # Eliminar uno a uno
+        for id_marcacion in ids_a_eliminar:
+            await self._client.delete(f"iclock/api/transactions/{id_marcacion}/")
+
+        logger.info("Eliminación masiva completada", eliminadas=len(ids_a_eliminar))
+        return len(ids_a_eliminar)

@@ -105,6 +105,60 @@ async def obtener_marcaciones_por_empleado(
 
 
 
+@router.delete("/por-filtro")
+async def eliminar_marcaciones(
+    service: MarcacionesDependencia,
+    codigo_empleado: Optional[str] = Query(default=None, description="Código de empleado (emp_code en BioTime)"),
+    fecha_inicio: Optional[str] = Query(default=None, description="Fecha de inicio del rango (ej: 2024-01-01 00:00:00)"),
+    fecha_fin: Optional[str] = Query(default=None, description="Fecha de fin del rango (ej: 2024-01-31 23:59:59)"),
+):
+    """
+    Elimina marcaciones filtrando por empleado y/o rango de fechas.
+
+    Se debe proporcionar al menos un filtro:
+    - Solo rango de fechas: elimina todas las marcaciones dentro del rango.
+    - Solo codigo_empleado: elimina todas las marcaciones del empleado.
+    - Ambos: elimina las marcaciones del empleado dentro del rango de fechas.
+    """
+    if not any([codigo_empleado, fecha_inicio, fecha_fin]):
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "Debe proporcionar al menos un filtro: codigo_empleado, fecha_inicio o fecha_fin"},
+        )
+
+    try:
+        logger.info(
+            "DELETE /marcaciones/por-filtro",
+            codigo_empleado=codigo_empleado,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+        )
+        eliminadas = await service.eliminar_marcaciones(
+            codigo_empleado=codigo_empleado,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+        )
+        return {"message": "Marcaciones eliminadas exitosamente", "eliminadas": eliminadas}
+
+    except BioTimeException as e:
+        logger.error(
+            "Error de BioTime al eliminar marcaciones por filtro",
+            error=e.message,
+            status_code=e.status_code,
+        )
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={"error": e.message, "status_code": e.status_code},
+        )
+
+    except Exception as e:
+        logger.error("Error inesperado al eliminar marcaciones por filtro", error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Error interno del servidor", "detail": str(e)},
+        )
+
+
 @router.delete("/por-id")
 async def eliminar_marcaciones_por_id(
     service: MarcacionesDependencia,

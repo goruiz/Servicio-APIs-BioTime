@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Propósito
 
-Middleware REST que envuelve la API de BioTime (sistema biométrico ZKTeco). Maneja autenticación JWT automáticamente y expone una interfaz limpia y tipada para consumidores externos.
+Este proyecto es un servicio middleware REST para conectarse a las APIs de **BioTime**, la aplicación de gestión de asistencia y acceso de **ZKTeco** (fabricante de dispositivos biométricos: lectores de huella dactilar, reconocimiento facial, tarjetas RFID, etc.).
+
+BioTime centraliza los registros de marcaciones (entradas/salidas) capturados por los terminales biométricos ZKTeco y expone una API REST propia. Este middleware actúa como capa de integración: maneja autenticación JWT contra BioTime de forma automática y transparente, y expone una interfaz limpia y tipada para que otros sistemas consuman los datos sin preocuparse por los detalles del protocolo de BioTime.
 
 ## Comandos
 
@@ -13,15 +15,15 @@ Middleware REST que envuelve la API de BioTime (sistema biométrico ZKTeco). Man
 source venv/bin/activate
 
 # Correr la aplicación
-python -m app.main
-# o
 uvicorn app.main:app --reload
+# o
+python -m app.main
 
 # Tests
-pytest                                     # todos los tests
-pytest tests/unit/                         # solo unit tests
-pytest tests/integration/                  # solo integration tests
-pytest tests/unit/services/test_biotime_service.py  # un archivo específico
+pytest                                                                 # todos
+pytest tests/unit/                                                     # solo unit
+pytest tests/integration/                                              # solo integration
+pytest tests/unit/services/test_biotime_service.py                    # un archivo
 
 # Linting y formato
 black app/ tests/
@@ -32,77 +34,87 @@ mypy app/
 
 Configuración de pytest, black, isort y mypy está en `pyproject.toml`.
 
-## Arquitectura real (estructura de archivos actual)
-
-El README describe una estructura idealizada que **no coincide** con la estructura real. La estructura real es:
+## Estructura real
 
 ```
 app/
 ├── api/
-│   ├── dependencies.py          # Inyección de dependencias (BioTimeServiceDependencia)
+│   ├── dependencias.py              # Aliases de dependencias (EmpleadoDependencia, MarcacionesDependencia)
+│   ├── interfaces/
+│   │   └── interface_biotime_service.py  # OBSOLETO — archivo legado, no usar
 │   └── v1/
-│       ├── router.py            # Agrega employees.router al api_router
+│       ├── router.py                # Registra empleado.router y marcaciones.router
 │       └── routes/
-│           └── employees.py     # Endpoints GET /employees
+│           ├── empleado.py          # GET /employees
+│           └── marcaciones.py       # GET /marcaciones, GET /marcaciones/por-empleado, DELETE /marcaciones/por-id
 ├── clients/
-│   └── biotime_client.py        # Único punto de contacto con BioTime API
+│   └── biotime_client.py            # Único punto de contacto HTTP con BioTime (get/post/put/patch/delete)
 ├── core/
-│   ├── config.py                # Settings via pydantic-settings (.env)
-│   ├── exceptions.py            # BioTimeException y subclases
-│   └── logging.py               # structlog (JSON en prod, consola en dev)
+│   ├── config.py                    # Settings via pydantic-settings (.env)
+│   ├── exceptions.py                # BioTimeException y subclases
+│   └── logging.py                   # structlog (JSON en prod, consola en dev)
 ├── interfaces/
-│   └── interface_biotime_service.py  # IBioTimeService (ABC)
+│   ├── empleado/
+│   │   └── interface_empleado.py    # IEmpleado (ABC)
+│   └── marcaciones/
+│       └── interface_marcaciones.py # IMarcaciones (ABC)
 ├── schemas/
-│   └── biotime/
-│       ├── auth.py              # LoginRequest, LoginResponse
-│       ├── common.py            # PaginatedResponse[T]
-│       └── employee.py          # EmployeeDto, DepartmentDto, PositionDto
+│   ├── biotime/
+│   │   ├── auth.py                  # LoginRequest, LoginResponse
+│   │   └── common.py                # PaginatedResponse[T]
+│   ├── empleado/
+│   │   └── respuesta_empleado.py    # EmployeeDto, DepartmentDto, PositionDto
+│   └── marcaciones/
+│       └── respuesta_marcaciones.py # MarcacionesDto
 ├── services/
-│   └── biotime_service.py       # BioTimeService implementa IBioTimeService
+│   ├── empleado/
+│   │   └── servicio_empleado.py     # ServicioEmpleado implements IEmpleado
+│   └── marcaciones/
+│       └── servicio_marcaciones.py  # ServicioMarcaciones implements IMarcaciones
 ├── utils/
-│   └── http_helpers.py          # build_query_params (actualmente sin usar)
-└── main.py                      # FastAPI app, CORS, incluye api_router en /api/v1
+│   └── http_helpers.py              # build_query_params (sin usar actualmente)
+└── main.py                          # FastAPI app, CORS, prefijo /api/v1
 ```
 
-**Crítico**: las interfaces viven en `app/interfaces/`, no en `app/services/interfaces/`. El import correcto es:
-```python
-from app.interfaces.interface_biotime_service import IBioTimeService
-```
+## Endpoints expuestos
 
-## Flujo de una petición
+| Método   | Path                              | Descripción                              |
+|----------|-----------------------------------|------------------------------------------|
+| GET      | `/api/v1/employees`               | Lista paginada de empleados              |
+| GET      | `/api/v1/marcaciones`             | Lista paginada de marcaciones            |
+| GET      | `/api/v1/marcaciones/por-empleado`| Marcaciones filtradas por `emp_code` y fechas |
+| DELETE   | `/api/v1/marcaciones/por-id`      | Elimina una marcación por ID             |
 
-```
-Uvicorn → FastAPI (main.py, configurado al inicio)
-        → CORS middleware
-        → api_router (/api/v1) → employees.router (/employees)
-        → FastAPI resuelve dependencias: BioTimeClient → BioTimeService
-        → get_employees(service, page, page_size)
-        → service.get_employees() → client.get("personnel/api/employees/")
-        → BioTimeClient: ¿token? no → _login() → guarda JWT
-        → GET BioTime con Authorization: JWT <token>
-        → ¿401? → borra token → _login() → reintenta
-        → JSON crudo → parseado a EmployeeDto[] → devuelve result.data
-```
+BioTime endpoints internos: `personnel/api/employees/` y `iclock/api/transactions/`.
 
 ## Patrón de inyección de dependencias
 
-Las dependencias se definen en `dependencies.py` como type aliases:
+`dependencias.py` define type aliases que FastAPI resuelve automáticamente:
 
 ```python
-BioTimeServiceDependencia = Annotated[IBioTimeService, Depends(get_biotime_service)]
+EmpleadoDependencia = Annotated[IEmpleado, Depends(obtener_servicio_empleados)]
+MarcacionesDependencia = Annotated[IMarcaciones, Depends(obtener_servicio_marcaciones)]
 ```
 
-Los endpoints las reciben como parámetro tipado y FastAPI las resuelve automáticamente. Una nueva instancia de `BioTimeClient` y `BioTimeService` se crea por cada petición.
+Cada petición crea una nueva instancia de `BioTimeClient` → `Servicio*`.
+
+## Flujo de autenticación en BioTimeClient
+
+1. Al hacer `get()`/`delete()`/etc., llama `_get_headers()`
+2. Si no hay token → `_login()` → POST a `jwt-api-token-auth/` → guarda JWT
+3. Si la respuesta es 401 → borra token → reintenta login → reintenta petición
+4. DELETE 204 → devuelve `{}` vacío
 
 ## Agregar un nuevo recurso
 
-1. Schema en `app/schemas/biotime/<recurso>.py`
-2. Método abstracto en `app/interfaces/interface_biotime_service.py`
-3. Implementación en `app/services/biotime_service.py`
+1. Schema en `app/schemas/<recurso>/respuesta_<recurso>.py`
+2. Interfaz en `app/interfaces/<recurso>/interface_<recurso>.py` (heredar ABC)
+3. Servicio en `app/services/<recurso>/servicio_<recurso>.py` (implementar interfaz)
 4. Endpoint en `app/api/v1/routes/<recurso>.py`
-5. Registrar en `app/api/v1/router.py`
-6. Agregar dependency alias en `app/api/dependencies.py`
+5. Registrar router en `app/api/v1/router.py`
+6. Agregar dependency alias en `app/api/dependencias.py`
 
-## Variables de entorno requeridas
+## Variables de entorno
 
-`BIOTIME_BASE_URL`, `BIOTIME_USERNAME`, `BIOTIME_PASSWORD` son obligatorias (sin default). El resto tiene defaults. Ver `.env.example`.
+Requeridas (sin default): `BIOTIME_BASE_URL`, `BIOTIME_USERNAME`, `BIOTIME_PASSWORD`.
+Ver `.env.example` para el resto de opciones (`PORT`, `DEBUG`, `LOG_LEVEL`, `ALLOWED_ORIGINS`, etc.).
