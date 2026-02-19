@@ -43,6 +43,12 @@ class Settings(BaseSettings):
         description="Formato de las claves en las respuestas JSON: 'camel' (empCode) o 'snake' (emp_code)",
     )
 
+    # Endpoints de BioTime (ajustar si la versión instalada usa rutas distintas)
+    BIOTIME_ENDPOINT_HUELLAS: str = Field(
+        default="personnel/api/userfinger/",
+        description="Endpoint de BioTime para huellas dactilares",
+    )
+
     # Sincronización de terminales biométricos
     BIOTIME_SYNC_HABILITADO: bool = Field(default=True, description="Habilita la sincronización automática tras operaciones de escritura")
 

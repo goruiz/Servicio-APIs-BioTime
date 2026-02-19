@@ -9,12 +9,14 @@ from fastapi import Depends
 from app.clients.biotime_client import BioTimeClient
 from app.core.config import settings
 from app.interfaces.empleado.interface_empleado import IEmpleado
+from app.interfaces.huellas.interface_huellas import IHuellas
 from app.interfaces.marcaciones.interface_marcaciones import IMarcaciones
 from app.interfaces.sincronizacion.interface_sincronizacion import (
     ISincronizacion,
     SincronizacionDeshabilitada,
 )
 from app.services.empleado.servicio_empleado import ServicioEmpleado
+from app.services.huellas.servicio_huellas import ServicioHuellas
 from app.services.marcaciones.servicio_marcaciones import ServicioMarcaciones
 from app.services.sincronizacion.servicio_sincronizacion import ServicioSincronizacion
 
@@ -58,6 +60,12 @@ def obtener_servicio_marcaciones(
     return ServicioMarcaciones(client=client)
 
 
+def obtener_servicio_huellas(
+    client: Annotated[BioTimeClient, Depends(get_biotime_client)]
+) -> IHuellas:
+    return ServicioHuellas(client=client)
+
+
 def obtener_servicio_sincronizacion(
     client: Annotated[BioTimeClient, Depends(get_biotime_client)]
 ) -> ISincronizacion:
@@ -73,5 +81,6 @@ def obtener_servicio_sincronizacion(
 
 # Type aliases para usar en los endpoints
 EmpleadoDependencia = Annotated[IEmpleado, Depends(obtener_servicio_empleados)]
+HuellasDependencia = Annotated[IHuellas, Depends(obtener_servicio_huellas)]
 MarcacionesDependencia = Annotated[IMarcaciones, Depends(obtener_servicio_marcaciones)]
 SincronizacionDependencia = Annotated[ISincronizacion, Depends(obtener_servicio_sincronizacion)]

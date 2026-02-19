@@ -34,7 +34,10 @@
       "Bash(while read dir:*)",
       "Bash(do touch \"$dir/__init__.py\")",
       "Bash(done)",
-      "Bash(python -c:*)"
+      "Bash(python -c:*)",
+      "WebSearch",
+      "WebFetch(domain:www.scribd.com)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

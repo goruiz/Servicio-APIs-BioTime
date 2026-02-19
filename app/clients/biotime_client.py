@@ -118,7 +118,24 @@ class BioTimeClient:
                 if response.status_code == 204:
                     return {}
 
-                return response.json()
+                # BioTime puede devolver cuerpo vacío (ej: solo "\n") con status 200
+                text = response.text.strip()
+                if not text:
+                    return {}
+
+                try:
+                    return response.json()
+                except Exception:
+                    logger.warning(
+                        "Respuesta no-JSON de BioTime",
+                        method=method,
+                        endpoint=endpoint,
+                        status_code=response.status_code,
+                        body=text[:200],
+                    )
+                    raise BioTimeConnectionError(
+                        f"Respuesta inesperada de BioTime (no es JSON): {text[:200]}"
+                    )
 
         except httpx.HTTPStatusError as e:
             logger.error(
