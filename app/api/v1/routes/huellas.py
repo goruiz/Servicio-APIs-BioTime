@@ -39,22 +39,22 @@ async def obtener_huellas(
 @router.get("/por-empleado", response_model=List[HuellaDto])
 async def obtener_huellas_por_empleado(
     service: HuellasDependencia,
-    codigo_empleado: str = Query(..., description="Código del empleado (emp_code en BioTime)"),
+    empleado_id: int = Query(..., description="ID del empleado (employee_id en iclock_biodata)"),
     page: int = Query(default=1, ge=1, description="Número de página"),
     page_size: int = Query(default=10, ge=1, le=100, description="Tamaño de página"),
 ):
-    """Obtiene las huellas dactilares registradas de un empleado específico."""
+    """Obtiene las huellas dactilares registradas de un empleado específico por su ID."""
     try:
-        logger.info("GET /huellas/por-empleado", codigo_empleado=codigo_empleado, page=page, page_size=page_size)
+        logger.info("GET /huellas/por-empleado", empleado_id=empleado_id, page=page, page_size=page_size)
         result = await service.obtener_huellas_por_empleado(
-            codigo_empleado=codigo_empleado, page=page, page_size=page_size
+            empleado_id=empleado_id, page=page, page_size=page_size
         )
         return result.data
 
     except BioTimeException as e:
-        logger.error("Error de BioTime al obtener huellas por empleado", error=e.message, status_code=e.status_code)
+        logger.error("Error de BioTime al obtener huellas por empleado", empleado_id=empleado_id, error=e.message, status_code=e.status_code)
         raise HTTPException(status_code=e.status_code, detail={"error": e.message, "status_code": e.status_code})
 
     except Exception as e:
-        logger.error("Error inesperado al obtener huellas por empleado", error=str(e))
+        logger.error("Error inesperado al obtener huellas por empleado", empleado_id=empleado_id, error=str(e))
         raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})

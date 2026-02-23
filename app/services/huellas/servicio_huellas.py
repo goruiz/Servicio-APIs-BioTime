@@ -32,14 +32,14 @@ class ServicioHuellas(IHuellas):
         )
 
     async def obtener_huellas_por_empleado(
-        self, codigo_empleado: str, page: int = 1, page_size: int = 10
+        self, empleado_id: int, page: int = 1, page_size: int = 10
     ) -> PaginatedResponse[HuellaDto]:
-        logger.info("Obteniendo huellas por empleado desde BD", codigo_empleado=codigo_empleado, page=page, page_size=page_size)
+        logger.info("Obteniendo huellas por empleado desde BD", empleado_id=empleado_id, page=page, page_size=page_size)
         total, filas = await self._repositorio.obtener_huellas_por_empleado(
-            codigo_empleado=codigo_empleado, page=page, page_size=page_size
+            empleado_id=empleado_id, page=page, page_size=page_size
         )
         huellas = [HuellaDto(**fila) for fila in filas]
-        logger.info("Huellas por empleado obtenidas", codigo_empleado=codigo_empleado, total=total, returned=len(huellas))
+        logger.info("Huellas por empleado obtenidas", empleado_id=empleado_id, total=total, returned=len(huellas))
         return PaginatedResponse[HuellaDto](
             count=total,
             next=None,

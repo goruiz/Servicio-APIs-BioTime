@@ -1,7 +1,7 @@
 """
 Repositorio de huellas dactilares.
-Ejecuta queries SQL directamente sobre la base de datos de BioTime.
-La tabla se configura con DB_TABLA_HUELLAS en .env (default: biodata_biotemplate).
+Ejecuta queries SQL directamente sobre la tabla iclock_biodata de BioTime.
+La tabla se configura con DB_TABLA_HUELLAS en .env (default: iclock_biodata).
 """
 import asyncpg
 
@@ -22,6 +22,7 @@ class RepositorioHuellas:
     ) -> tuple[int, list[dict]]:
         """Devuelve (total, registros) de todas las huellas paginadas."""
         offset = (page - 1) * page_size
+        logger.debug("SQL obtener_huellas", tabla=self._tabla, page=page, page_size=page_size)
         async with self._pool.acquire() as conn:
             total: int = await conn.fetchval(f"SELECT COUNT(*) FROM {self._tabla}")
             filas = await conn.fetch(
@@ -32,18 +33,19 @@ class RepositorioHuellas:
         return total, [dict(fila) for fila in filas]
 
     async def obtener_huellas_por_empleado(
-        self, codigo_empleado: str, page: int = 1, page_size: int = 10
+        self, empleado_id: int, page: int = 1, page_size: int = 10
     ) -> tuple[int, list[dict]]:
         """Devuelve (total, registros) de las huellas de un empleado paginadas."""
         offset = (page - 1) * page_size
+        logger.debug("SQL obtener_huellas_por_empleado", tabla=self._tabla, empleado_id=empleado_id, page=page, page_size=page_size)
         async with self._pool.acquire() as conn:
             total: int = await conn.fetchval(
-                f"SELECT COUNT(*) FROM {self._tabla} WHERE emp_code = $1",
-                codigo_empleado,
+                f"SELECT COUNT(*) FROM {self._tabla} WHERE employee_id = $1",
+                empleado_id,
             )
             filas = await conn.fetch(
-                f"SELECT * FROM {self._tabla} WHERE emp_code = $1 ORDER BY id LIMIT $2 OFFSET $3",
-                codigo_empleado,
+                f"SELECT * FROM {self._tabla} WHERE employee_id = $1 ORDER BY id LIMIT $2 OFFSET $3",
+                empleado_id,
                 page_size,
                 offset,
             )

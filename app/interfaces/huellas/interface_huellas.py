@@ -18,7 +18,7 @@ class IHuellas(ABC):
 
     @abstractmethod
     async def obtener_huellas_por_empleado(
-        self, codigo_empleado: str, page: int = 1, page_size: int = 10
+        self, empleado_id: int, page: int = 1, page_size: int = 10
     ) -> PaginatedResponse[HuellaDto]:
-        """Obtiene las huellas registradas de un empleado específico por su emp_code."""
+        """Obtiene las huellas registradas de un empleado específico por su employee_id (PK en iclock_biodata)."""
         pass

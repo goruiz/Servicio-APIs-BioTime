@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     DB_NOMBRE: str = Field(default="biotime", description="Nombre de la base de datos")
     DB_USUARIO: str = Field(default="postgres", description="Usuario de PostgreSQL")
     DB_PASSWORD: str = Field(..., description="Contraseña de PostgreSQL")
-    DB_TABLA_HUELLAS: str = Field(default="biodata_biotemplate", description="Tabla de huellas dactilares en BioTime")
+    DB_TABLA_HUELLAS: str = Field(default="iclock_biodata", description="Tabla de huellas dactilares en BioTime")
 
     # Logging
     LOG_LEVEL: str = "INFO"
