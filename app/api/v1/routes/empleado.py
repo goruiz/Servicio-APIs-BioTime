@@ -9,6 +9,7 @@ from app.api.dependencias import EmpleadoDependencia, SincronizacionDependencia
 from app.core.exceptions import BioTimeException
 from app.core.logging import get_logger
 from app.schemas.empleado.respuesta_empleado import EmpleadoCreateUpdateDto, EmployeeDto
+from app.schemas.respuesta_comun import SuccessResponse
 from app.utils.routing import ConfigurableAliasRoute
 
 logger = get_logger(__name__)
@@ -100,7 +101,7 @@ async def actualizar_empleado(
         raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})
 
 
-@router.delete("", status_code=204)
+@router.delete("", response_model=SuccessResponse)
 async def eliminar_empleados(
     service: EmpleadoDependencia,
     sincronizacion: SincronizacionDependencia,
@@ -109,8 +110,12 @@ async def eliminar_empleados(
     """Elimina uno o varios empleados por sus IDs y sincroniza los terminales."""
     try:
         logger.info("DELETE /empleados", ids=id, total=len(id))
-        await service.eliminar_empleados(empleado_ids=id)
+        eliminados = await service.eliminar_empleados(empleado_ids=id)
         await sincronizacion.sincronizar()
+        return SuccessResponse(
+            message=f"{eliminados} empleado(s) eliminado(s) correctamente.",
+            data={"ids_eliminados": id, "total": eliminados},
+        )
 
     except BioTimeException as e:
         logger.error("Error de BioTime al eliminar empleados", ids=id, error=e.message, status_code=e.status_code)
