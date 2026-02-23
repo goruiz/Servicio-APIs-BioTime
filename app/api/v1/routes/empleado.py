@@ -101,6 +101,7 @@ async def actualizar_empleado(
         raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})
 
 
+
 @router.delete("", response_model=SuccessResponse)
 async def eliminar_empleados(
     service: EmpleadoDependencia,
