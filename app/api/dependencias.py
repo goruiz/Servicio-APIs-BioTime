@@ -17,10 +17,12 @@ from app.interfaces.sincronizacion.interface_sincronizacion import (
     ISincronizacion,
     SincronizacionDeshabilitada,
 )
+from app.interfaces.terminales.interface_terminales import ITerminales
 from app.services.empleado.servicio_empleado import ServicioEmpleado
 from app.services.huellas.servicio_huellas import ServicioHuellas
 from app.services.marcaciones.servicio_marcaciones import ServicioMarcaciones
 from app.services.sincronizacion.servicio_sincronizacion import ServicioSincronizacion
+from app.services.terminales.servicio_terminales import ServicioTerminales
 
 
 def get_biotime_client() -> BioTimeClient:
@@ -80,8 +82,16 @@ def obtener_servicio_sincronizacion(
     return SincronizacionDeshabilitada()
 
 
+def obtener_servicio_terminales(
+    client: Annotated[BioTimeClient, Depends(get_biotime_client)]
+) -> ITerminales:
+    """Provee una instancia del servicio de terminales."""
+    return ServicioTerminales(client=client)
+
+
 # Type aliases para usar en los endpoints
 EmpleadoDependencia = Annotated[IEmpleado, Depends(obtener_servicio_empleados)]
 HuellasDependencia = Annotated[IHuellas, Depends(obtener_servicio_huellas)]
 MarcacionesDependencia = Annotated[IMarcaciones, Depends(obtener_servicio_marcaciones)]
 SincronizacionDependencia = Annotated[ISincronizacion, Depends(obtener_servicio_sincronizacion)]
+TerminalesDependencia = Annotated[ITerminales, Depends(obtener_servicio_terminales)]
