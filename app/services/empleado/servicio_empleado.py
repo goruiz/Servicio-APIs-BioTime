@@ -67,8 +67,11 @@ class ServicioEmpleado(IEmpleado):
         logger.info("Empleado actualizado exitosamente", empleado_id=empleado_id)
         return empleado
 
-    async def eliminar_empleado(self, empleado_id: int) -> None:
-        """Elimina un empleado por su ID interno de BioTime."""
-        logger.info("Eliminando empleado", empleado_id=empleado_id)
-        await self._client.delete(f"personnel/api/employees/{empleado_id}/")
-        logger.info("Empleado eliminado exitosamente", empleado_id=empleado_id)
+    async def eliminar_empleados(self, empleado_ids: list[int]) -> int:
+        """Elimina uno o varios empleados por sus IDs. Devuelve la cantidad eliminada."""
+        logger.info("Eliminando empleados", total=len(empleado_ids), ids=empleado_ids)
+        for empleado_id in empleado_ids:
+            await self._client.delete(f"personnel/api/employees/{empleado_id}/")
+            logger.info("Empleado eliminado", empleado_id=empleado_id)
+        logger.info("Eliminación de empleados completada", eliminados=len(empleado_ids))
+        return len(empleado_ids)

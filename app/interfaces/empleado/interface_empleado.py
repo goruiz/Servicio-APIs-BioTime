@@ -47,6 +47,6 @@ class IEmpleado(ABC):
         pass
 
     @abstractmethod
-    async def eliminar_empleado(self, empleado_id: int) -> None:
-        """Elimina un empleado por su ID interno de BioTime."""
+    async def eliminar_empleados(self, empleado_ids: list[int]) -> int:
+        """Elimina uno o varios empleados por sus IDs. Devuelve la cantidad eliminada."""
         pass

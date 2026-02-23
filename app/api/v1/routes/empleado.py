@@ -12,7 +12,7 @@ from app.schemas.empleado.respuesta_empleado import EmpleadoCreateUpdateDto, Emp
 from app.utils.routing import ConfigurableAliasRoute
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/employees", tags=["Employees"], route_class=ConfigurableAliasRoute)
+router = APIRouter(prefix="/empleados", tags=["Employees"], route_class=ConfigurableAliasRoute)
 
 
 @router.get("", response_model=List[EmployeeDto])
@@ -100,22 +100,22 @@ async def actualizar_empleado(
         raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})
 
 
-@router.delete("/{empleado_id}", status_code=204)
-async def eliminar_empleado(
+@router.delete("", status_code=204)
+async def eliminar_empleados(
     service: EmpleadoDependencia,
     sincronizacion: SincronizacionDependencia,
-    empleado_id: int,
+    id: List[int] = Query(..., description="IDs de los empleados a eliminar. Pasar uno o varios: ?ids=1&ids=2&ids=3"),
 ):
-    """Elimina un empleado por su ID interno de BioTime y sincroniza los terminales."""
+    """Elimina uno o varios empleados por sus IDs y sincroniza los terminales."""
     try:
-        logger.info("DELETE /employees/{id}", empleado_id=empleado_id)
-        await service.eliminar_empleado(empleado_id=empleado_id)
+        logger.info("DELETE /empleados", ids=id, total=len(id))
+        await service.eliminar_empleados(empleado_ids=id)
         await sincronizacion.sincronizar()
 
     except BioTimeException as e:
-        logger.error("Error de BioTime al eliminar empleado", empleado_id=empleado_id, error=e.message, status_code=e.status_code)
+        logger.error("Error de BioTime al eliminar empleados", ids=id, error=e.message, status_code=e.status_code)
         raise HTTPException(status_code=e.status_code, detail={"error": e.message, "status_code": e.status_code})
 
     except Exception as e:
-        logger.error("Error inesperado al eliminar empleado", empleado_id=empleado_id, error=str(e))
+        logger.error("Error inesperado al eliminar empleados", ids=id, error=str(e))
         raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})
