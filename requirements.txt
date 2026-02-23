@@ -10,6 +10,9 @@ python-decouple>=3.8
 # Cliente HTTP
 httpx>=0.26.0
 
+# Base de datos PostgreSQL
+asyncpg>=0.29.0
+
 # Logging
 structlog>=24.1.0
 

@@ -12,13 +12,14 @@ if not exist .env (
     exit /b 1
 )
 
-REM Activar entorno virtual si existe
-if exist venv\Scripts\activate.bat (
+REM Activar entorno virtual de Windows (venv-win) si existe
+if exist venv-win\Scripts\activate.bat (
     echo Activando entorno virtual...
-    call venv\Scripts\activate.bat
+    call venv-win\Scripts\activate.bat
 ) else (
-    echo No se encontro entorno virtual.
-    echo Crea uno con: python -m venv venv
+    echo No se encontro entorno virtual de Windows.
+    echo Crea uno con: python -m venv venv-win
+    echo Luego instala dependencias: venv-win\Scripts\pip install -r requirements.txt
     exit /b 1
 )
 

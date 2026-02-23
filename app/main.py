@@ -2,17 +2,28 @@
 Punto de entrada principal de la aplicación FastAPI.
 Servicio de APIs para BioTime - Sistema de gestión biométrica ZKTeco.
 """
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.logging import setup_logging
+from app.core.logging import get_logger, setup_logging
+from app.db.conexion import cerrar_pool, iniciar_pool
 
-# Configurar logging
 setup_logging()
+logger = get_logger(__name__)
 
-# Crear instancia de FastAPI
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Gestiona el ciclo de vida: inicia el pool de BD al arrancar y lo cierra al apagar."""
+    await iniciar_pool()
+    yield
+    await cerrar_pool()
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
@@ -20,9 +31,9 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
     docs_url=f"{settings.API_V1_PREFIX}/docs",
     redoc_url=f"{settings.API_V1_PREFIX}/redoc",
+    lifespan=lifespan,
 )
 
-# Configurar CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
@@ -31,7 +42,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Incluir routers
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 
@@ -42,6 +52,7 @@ async def health_check():
         "status": "healthy",
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION,
+        "environment": settings.ENVIRONMENT,
     }
 
 

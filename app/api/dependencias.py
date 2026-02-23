@@ -8,6 +8,8 @@ from fastapi import Depends
 
 from app.clients.biotime_client import BioTimeClient
 from app.core.config import settings
+from app.db.conexion import obtener_pool
+from app.db.repositorios.repositorio_huellas import RepositorioHuellas
 from app.interfaces.empleado.interface_empleado import IEmpleado
 from app.interfaces.huellas.interface_huellas import IHuellas
 from app.interfaces.marcaciones.interface_marcaciones import IMarcaciones
@@ -60,10 +62,9 @@ def obtener_servicio_marcaciones(
     return ServicioMarcaciones(client=client)
 
 
-def obtener_servicio_huellas(
-    client: Annotated[BioTimeClient, Depends(get_biotime_client)]
-) -> IHuellas:
-    return ServicioHuellas(client=client)
+def obtener_servicio_huellas() -> IHuellas:
+    repositorio = RepositorioHuellas(pool=obtener_pool())
+    return ServicioHuellas(repositorio=repositorio)
 
 
 def obtener_servicio_sincronizacion(
