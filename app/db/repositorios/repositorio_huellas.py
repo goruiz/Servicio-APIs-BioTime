@@ -6,9 +6,6 @@ La tabla se configura con DB_TABLA_HUELLAS en .env (default: iclock_biodata).
 import asyncpg
 
 from app.core.config import settings
-from app.core.logging import get_logger
-
-logger = get_logger(__name__)
 
 
 class RepositorioHuellas:
@@ -22,7 +19,6 @@ class RepositorioHuellas:
     ) -> tuple[int, list[dict]]:
         """Devuelve (total, registros) de todas las huellas paginadas."""
         offset = (page - 1) * page_size
-        logger.debug("SQL obtener_huellas", tabla=self._tabla, page=page, page_size=page_size)
         async with self._pool.acquire() as conn:
             total: int = await conn.fetchval(f"SELECT COUNT(*) FROM {self._tabla}")
             filas = await conn.fetch(
@@ -37,7 +33,6 @@ class RepositorioHuellas:
     ) -> tuple[int, list[dict]]:
         """Devuelve (total, registros) de las huellas de un empleado paginadas."""
         offset = (page - 1) * page_size
-        logger.debug("SQL obtener_huellas_por_empleado", tabla=self._tabla, empleado_id=empleado_id, page=page, page_size=page_size)
         async with self._pool.acquire() as conn:
             total: int = await conn.fetchval(
                 f"SELECT COUNT(*) FROM {self._tabla} WHERE employee_id = $1",

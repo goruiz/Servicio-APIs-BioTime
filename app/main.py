@@ -9,19 +9,30 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.logging import get_logger, setup_logging
+from app.core.scheduler import scheduler
 from app.db.conexion import cerrar_pool, iniciar_pool
 
-setup_logging()
-logger = get_logger(__name__)
+print(f"[App] {settings.ENVIRONMENT} v{settings.VERSION} | {settings.HOST}:{settings.PORT} | BioTime={settings.BIOTIME_BASE_URL}")
+
+if settings.TAREAS_HABILITADO:
+    import app.services.tareas.servicio_tareas  # noqa: F401
+else:
+    print("[App] Scheduler deshabilitado (TAREAS_HABILITADO=False)")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Gestiona el ciclo de vida: inicia el pool de BD al arrancar y lo cierra al apagar."""
     await iniciar_pool()
+
+    if settings.TAREAS_HABILITADO:
+        scheduler.iniciar()
+
+    print("[App] Servidor listo")
     yield
+
+    scheduler.detener()
     await cerrar_pool()
+    print("[App] Servicio detenido")
 
 
 app = FastAPI(

@@ -7,11 +7,9 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.api.dependencias import HuellasDependencia
 from app.core.exceptions import BioTimeException
-from app.core.logging import get_logger
 from app.schemas.huellas.respuesta_huellas import HuellaDto
 from app.utils.routing import ConfigurableAliasRoute
 
-logger = get_logger(__name__)
 router = APIRouter(prefix="/huellas", tags=["Huellas"], route_class=ConfigurableAliasRoute)
 
 
@@ -23,16 +21,15 @@ async def obtener_huellas(
 ):
     """Obtiene la lista paginada de todas las huellas dactilares registradas en BioTime."""
     try:
-        logger.info("GET /huellas", page=page, page_size=page_size)
         result = await service.obtener_huellas(page=page, page_size=page_size)
         return result.data
 
     except BioTimeException as e:
-        logger.error("Error de BioTime al obtener huellas", error=e.message, status_code=e.status_code)
+        print(f"[Huellas] ERROR - GET /huellas: {e.message} (HTTP {e.status_code})")
         raise HTTPException(status_code=e.status_code, detail={"error": e.message, "status_code": e.status_code})
 
     except Exception as e:
-        logger.error("Error inesperado al obtener huellas", error=str(e))
+        print(f"[Huellas] ERROR - GET /huellas: {e}")
         raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})
 
 
@@ -45,16 +42,15 @@ async def obtener_huellas_por_empleado(
 ):
     """Obtiene las huellas dactilares registradas de un empleado específico por su ID."""
     try:
-        logger.info("GET /huellas/por-empleado", empleado_id=empleado_id, page=page, page_size=page_size)
         result = await service.obtener_huellas_por_empleado(
             empleado_id=empleado_id, page=page, page_size=page_size
         )
         return result.data
 
     except BioTimeException as e:
-        logger.error("Error de BioTime al obtener huellas por empleado", empleado_id=empleado_id, error=e.message, status_code=e.status_code)
+        print(f"[Huellas] ERROR - GET /huellas/por-empleado ID={empleado_id}: {e.message} (HTTP {e.status_code})")
         raise HTTPException(status_code=e.status_code, detail={"error": e.message, "status_code": e.status_code})
 
     except Exception as e:
-        logger.error("Error inesperado al obtener huellas por empleado", empleado_id=empleado_id, error=str(e))
+        print(f"[Huellas] ERROR - GET /huellas/por-empleado ID={empleado_id}: {e}")
         raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})

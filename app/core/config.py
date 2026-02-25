@@ -64,6 +64,18 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
 
+    # Scheduler de tareas
+    TAREAS_HABILITADO: bool = Field(default=True, description="Habilita el polling periódico de tareas de Preciso")
+    TAREAS_INTERVALO_SEGUNDOS: int = Field(default=60, description="Intervalo en segundos entre cada consulta de tareas")
+
+    # Preciso API (para leer y completar tareas)
+    PRECISO_BASE_URL: str = Field(default="", description="URL base del servidor Preciso (ej: http://192.168.1.10/)")
+    PRECISO_USERNAME: str = Field(default="", description="Usuario OAuth2 de Preciso")
+    PRECISO_PASSWORD: str = Field(default="", description="Contraseña OAuth2 de Preciso")
+    PRECISO_CLIENT_ID: str = Field(default="", description="client_id de Laravel Passport en Preciso")
+    PRECISO_CLIENT_SECRET: str = Field(default="", description="client_secret de Laravel Passport en Preciso")
+    PRECISO_TIMEOUT: int = Field(default=30, description="Timeout en segundos para peticiones a Preciso")
+
 
 # Instancia global de configuración
 settings = Settings()

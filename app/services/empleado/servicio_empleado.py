@@ -3,12 +3,9 @@ Servicio de empleados.
 Lógica de negocio para interactuar con el recurso de empleados de BioTime.
 """
 from app.clients.biotime_client import BioTimeClient
-from app.core.logging import get_logger
 from app.interfaces.empleado.interface_empleado import IEmpleado
 from app.schemas.biotime.common import PaginatedResponse
 from app.schemas.empleado.respuesta_empleado import EmpleadoCreateUpdateDto, EmployeeDto
-
-logger = get_logger(__name__)
 
 
 class ServicioEmpleado(IEmpleado):
@@ -17,11 +14,7 @@ class ServicioEmpleado(IEmpleado):
     def __init__(self, client: BioTimeClient):
         self._client = client
 
-    async def obtener_empleados(
-        self, page: int = 1, page_size: int = 10
-    ) -> PaginatedResponse[EmployeeDto]:
-        """Obtiene la lista paginada de empleados desde BioTime."""
-        logger.info("Obteniendo empleados", page=page, page_size=page_size)
+    async def obtener_empleados(self, page: int = 1, page_size: int = 10) -> PaginatedResponse[EmployeeDto]:
         params = {"page": page, "page_size": page_size}
         response_data = await self._client.get("personnel/api/employees/", params=params)
         employees = [EmployeeDto(**emp) for emp in response_data.get("data", [])]
@@ -31,47 +24,31 @@ class ServicioEmpleado(IEmpleado):
             previous=response_data.get("previous"),
             data=employees,
         )
-        logger.info(
-            "Empleados obtenidos exitosamente",
-            total=result.count,
-            page=page,
-            returned=len(employees),
-        )
+        print(f"[Empleado] Obtenidos {len(employees)}/{result.count} — página {page}")
         return result
 
     async def obtener_empleado_por_id(self, empleado_id: int) -> EmployeeDto:
-        """Obtiene un empleado por su ID interno de BioTime."""
-        logger.info("Obteniendo empleado por ID", empleado_id=empleado_id)
         response_data = await self._client.get(f"personnel/api/employees/{empleado_id}/")
         empleado = EmployeeDto(**response_data)
-        logger.info("Empleado obtenido exitosamente", empleado_id=empleado_id)
+        print(f"[Empleado] Obtenido — ID={empleado_id} emp_code={empleado.emp_code}")
         return empleado
 
     async def crear_empleado(self, datos: EmpleadoCreateUpdateDto) -> EmployeeDto:
-        """Crea un nuevo empleado en BioTime."""
-        logger.info("Creando empleado", emp_code=datos.emp_code)
-        response_data = await self._client.post(
-            "personnel/api/employees/", json=datos.model_dump()
-        )
+        response_data = await self._client.post("personnel/api/employees/", json=datos.model_dump())
         empleado = EmployeeDto(**response_data)
-        logger.info("Empleado creado exitosamente", empleado_id=empleado.id, emp_code=empleado.emp_code)
+        print(f"[Empleado] Creado — ID={empleado.id} emp_code={empleado.emp_code}")
         return empleado
 
     async def actualizar_empleado(self, empleado_id: int, datos: EmpleadoCreateUpdateDto) -> EmployeeDto:
-        """Reemplaza todos los datos de un empleado (PUT)."""
-        logger.info("Actualizando empleado", empleado_id=empleado_id, emp_code=datos.emp_code)
         response_data = await self._client.put(
             f"personnel/api/employees/{empleado_id}/", json=datos.model_dump()
         )
         empleado = EmployeeDto(**response_data)
-        logger.info("Empleado actualizado exitosamente", empleado_id=empleado_id)
+        print(f"[Empleado] Actualizado — ID={empleado_id}")
         return empleado
 
     async def eliminar_empleados(self, empleado_ids: list[int]) -> int:
-        """Elimina uno o varios empleados por sus IDs. Devuelve la cantidad eliminada."""
-        logger.info("Eliminando empleados", total=len(empleado_ids), ids=empleado_ids)
         for empleado_id in empleado_ids:
             await self._client.delete(f"personnel/api/employees/{empleado_id}/")
-            logger.info("Empleado eliminado", empleado_id=empleado_id)
-        logger.info("Eliminación de empleados completada", eliminados=len(empleado_ids))
+        print(f"[Empleado] Eliminados {len(empleado_ids)} — IDs={empleado_ids}")
         return len(empleado_ids)
