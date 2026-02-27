@@ -68,6 +68,11 @@ class Settings(BaseSettings):
     TAREAS_HABILITADO: bool = Field(default=True, description="Habilita el polling periódico de tareas de Preciso")
     TAREAS_INTERVALO_SEGUNDOS: int = Field(default=60, description="Intervalo en segundos entre cada consulta de tareas")
 
+    # Valores por defecto para empleados creados desde tareas Preciso (EMPDAT)
+    # BioTime exige department y area; Preciso no los envía en el detalle de la tarea
+    BIOTIME_DEFAULT_DEPARTMENT_ID: int = Field(default=1, description="ID del departamento por defecto en BioTime")
+    BIOTIME_DEFAULT_AREA_ID: int = Field(default=1, description="ID del área por defecto en BioTime")
+
     # Preciso API (para leer y completar tareas)
     PRECISO_BASE_URL: str = Field(default="", description="URL base del servidor Preciso (ej: http://192.168.1.10/)")
     PRECISO_USERNAME: str = Field(default="", description="Usuario OAuth2 de Preciso")
@@ -75,6 +80,7 @@ class Settings(BaseSettings):
     PRECISO_CLIENT_ID: str = Field(default="", description="client_id de Laravel Passport en Preciso")
     PRECISO_CLIENT_SECRET: str = Field(default="", description="client_secret de Laravel Passport en Preciso")
     PRECISO_TIMEOUT: int = Field(default=30, description="Timeout en segundos para peticiones a Preciso")
+
 
 
 # Instancia global de configuración

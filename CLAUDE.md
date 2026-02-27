@@ -259,3 +259,185 @@ La configuración carga `.env` como base y luego `.env.{ENVIRONMENT}` como overr
 
 - `app/api/interfaces/interface_biotime_service.py` — interfaz legada `IBioTimeService`, no se importa en ningún lado. Puede eliminarse.
 - `app/utils/http_helpers.py` — `build_query_params()` implementada pero no usada. Los servicios construyen `params` manualmente.
+
+---
+
+## Proyectos relacionados
+
+Estos proyectos son parte del mismo ecosistema y en el futuro se integrarán con este servicio.
+
+### PrecisoAPI (`Proyectos/Preciso/precisoapi`)
+
+Sistema integral de gestión de asistencia empresarial. Es el sistema de negocio principal que consume datos de terminales ZKTeco.
+
+**Stack**: PHP 7.1 / Laravel 5.6, Oracle XE, Vue.js, Laravel Passport (OAuth2)
+
+**Qué hace:**
+- Gestiona el ciclo completo de RRHH: empleados, locales, turnos, jornadas, planificación semanal
+- Registra marcaciones (entrada/salida) capturadas desde terminales biométricos
+- Realiza cierres diarios por local y calcula horas extras/suplementarias por quincena
+- Genera reportes de asistencia (PDF via JasperReports, Excel via Maatwebsite)
+- Audita todos los cambios en BD via sistema de eventos Laravel (`DBModificada` → `LogDB`)
+
+**Comunicación con dispositivos ZKTeco (mecanismo TAREA):**
+
+PrecisoAPI no habla directamente con los terminales. En su lugar usa una tabla de tareas asincrónica:
+
+```
+PrecisoAPI escribe en tabla TAREA (instruccion, ip, detalle)
+    ↓
+Daemon (zkdaemon o PrecisoWFDaemon) hace polling: GET /api/tareas
+    ↓
+Daemon ejecuta instrucción en el terminal (protocolo ZK)
+    ↓
+Daemon reporta resultado: POST /api/completar_tarea
+```
+
+**Instrucciones de tarea que maneja el daemon:**
+
+| Instrucción | Descripción |
+|-------------|-------------|
+| `EMPDAT` | Crear/actualizar empleado en terminal |
+| `EMPUDT` | Actualizar datos de empleado |
+| `EMPDEL` | Eliminar empleado del terminal |
+| `EMPMAR` | Leer marcaciones del terminal |
+| `EMPMAD` | Leer y borrar marcaciones del terminal |
+| `EMPHUE` | Leer templates de huella de un empleado |
+| `DELHUE` | Eliminar huella del terminal |
+| `REPHUE` | Replicar huella a terminal(es) |
+| `COPHUE` | Copiar huella entre empleados |
+| `DISDAT` | Leer info del dispositivo (serie, firmware, MAC) |
+| `ASGPRV` | Asignar/revocar privilegios de administrador |
+| `RESETD` | Reset completo del dispositivo |
+| `UPDTFH` | Actualizar fecha/hora del terminal |
+
+**Endpoints clave para integración:**
+
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| POST | `/oauth/token` | — | Obtener token OAuth2 (password grant) |
+| GET | `/api/tareas` | Bearer | Listar tareas pendientes para el daemon |
+| POST | `/api/completar_tarea` | Bearer | Marcar tarea como completada con resultado |
+| POST | `/api/marcacion_dispositivo` | — | Recibir marcación desde terminal/daemon |
+
+**Modelo de datos de Tarea:**
+```json
+{
+  "id_tarea": 42,
+  "instruccion": "EMPDAT",
+  "ip": "192.168.1.10",
+  "detalle": "EMP001|Juan Perez|N|0",
+  "id_tabla": 7,
+  "estado": "E"
+}
+```
+
+**Serialización de `detalle`:** campos separados por `|`, registros múltiples separados por `&`.
+
+---
+
+### zkdaemon (`Proyectos/Preciso/zkdaemon`)
+
+Daemon Python que actúa como puente entre PrecisoAPI y los terminales biométricos ZKTeco. Es el componente que realmente habla con el hardware.
+
+**Stack**: Python 3.7+, librería `zk` (protocolo ZK propietario sobre UDP/TCP), `requests`
+
+**Qué hace:**
+- Hace polling continuo a PrecisoAPI vía HTTP para obtener tareas pendientes
+- Por cada tarea, abre una conexión directa al terminal ZKTeco (socket UDP/TCP, puerto 4370)
+- Traduce la instrucción de alto nivel a comandos ZK binarios
+- Ejecuta la operación en el terminal (leer huellas, crear usuario, leer marcaciones, etc.)
+- Reporta el resultado de vuelta a PrecisoAPI
+- Registra todo en `/logs/zkpydaemon.log`
+
+**Arquitectura interna:**
+
+```
+base.py (entrypoint/loop principal)
+    ↓
+clientapi.py (ClientApi)
+    ├── obtener_token()          → OAuth2 password grant → PrecisoAPI
+    ├── obtener_tareas()         → GET /api/tareas → PrecisoAPI
+    ├── instruccion_a_ejecutar() → dispatcher dinámico por nombre
+    │   └── ejecutar_EMPDAT(), ejecutar_EMPHUE(), ... (15+ métodos)
+    └── cerrar_tarea()           → POST /api/completar_tarea → PrecisoAPI
+              ↓
+devicelib.py (DeviceController)
+    ├── conectar()               → ZK(ip, port=4370, timeout=20).connect()
+    ├── anadir_empleado()
+    ├── leer_marcaciones()
+    ├── leer_huella()
+    ├── copiar_huella()
+    └── eliminar_huella()
+              ↓
+zk/base.py (ZK class — protocolo propietario)
+    ├── Paquetes binarios: header + checksum CRC16
+    ├── Sesiones con session_id y reply_id
+    ├── Dual UDP/TCP (intenta TCP, fallback UDP)
+    └── Comandos: CMD_USER_WRQ(8), CMD_USERTEMP_RRQ(9), CMD_ATTLOG_RRQ(13), ...
+              ↓
+Terminal ZKTeco (hardware)
+    Puerto 4370 UDP/TCP
+```
+
+**Modelos de datos internos del protocolo ZK:**
+
+```python
+# Usuario en el terminal
+User(uid, name, privilege, password, group_id, user_id, card)
+# user_id = emp_code de PrecisoAPI (ej: "EMP001")
+# privilege: 0=user, 2=enroller, 6=manager, 14=admin
+
+# Marcación capturada
+Attendance(uid, user_id, timestamp, status, punch)
+
+# Template biométrico de huella
+Finger(uid, fid, valid, template: bytes, size)
+# fid = índice del dedo (0-9)
+```
+
+**Configuración** (`config.cfg`):
+```ini
+[RestServer]
+url = http://<host>/precisoapi/public/
+client_id = <id_oauth>
+client_secret = <secret_oauth>
+username = <usuario>
+password = <clave>
+```
+
+**Ejecución:**
+```bash
+python3 base.py
+# o en producción (singleton):
+bash daemon.sh
+```
+
+---
+
+### Relación entre los tres sistemas
+
+```
+[Terminales ZKTeco] ←──protocolo ZK binario──→ [zkdaemon]
+                                                      │
+                                                   HTTP/OAuth2
+                                                      │
+                                                 [PrecisoAPI]
+                                                 (Laravel/Oracle)
+                                                      │
+                                              (integración futura)
+                                                      │
+                                          [Servicio APIs BioTime]  ←──JWT──→ [BioTime]
+                                                                                  │
+                                                                           [Terminales ZKTeco]
+```
+
+- **zkdaemon** → habla directamente con terminales vía protocolo ZK (bajo nivel, sin intermediarios)
+- **Servicio APIs BioTime** → habla con terminales a través de BioTime (que hace de broker centralizado)
+- **PrecisoAPI** → sistema de negocio que orquesta todo; usa zkdaemon para operaciones en tiempo real y podría usar este servicio para acceder a datos de BioTime
+- Los tres proyectos comparten el dominio ZKTeco pero en capas distintas de abstracción
+
+**Diferencia clave respecto a este servicio:**
+- Este servicio accede a BioTime (API REST de ZKTeco) y su PostgreSQL
+- zkdaemon accede a los terminales directamente (protocolo binario, sin BioTime)
+- Ambos pueden coexistir: zkdaemon para operaciones inmediatas en hardware, este servicio para lectura centralizada de datos históricos vía BioTime
