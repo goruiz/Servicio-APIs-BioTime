@@ -3,6 +3,7 @@ Interfaz del servicio de BioTime.
 Define el contrato que debe cumplir cualquier implementación del servicio.
 """
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from app.schemas.biotime.common import PaginatedResponse
 from app.schemas.empleado.respuesta_empleado import EmpleadoCreateUpdateDto, EmployeeDto
@@ -34,6 +35,11 @@ class IEmpleado(ABC):
     @abstractmethod
     async def obtener_empleado_por_id(self, empleado_id: int) -> EmployeeDto:
         """Obtiene un empleado por su ID interno de BioTime."""
+        pass
+
+    @abstractmethod
+    async def buscar_por_emp_code(self, emp_code: str) -> Optional[EmployeeDto]:
+        """Busca un empleado por su código (emp_code). Devuelve None si no existe."""
         pass
 
     @abstractmethod

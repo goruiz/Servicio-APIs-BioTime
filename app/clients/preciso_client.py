@@ -34,7 +34,6 @@ class PrecisoClient:
 
     async def _login(self) -> str:
         """Obtiene un access token de Preciso via OAuth2 password grant."""
-        print(f"[Preciso] Login — {self._base_url} usuario={settings.PRECISO_USERNAME} client_id={settings.PRECISO_CLIENT_ID}")
         payload = {
             "grant_type": "password",
             "client_id": settings.PRECISO_CLIENT_ID,

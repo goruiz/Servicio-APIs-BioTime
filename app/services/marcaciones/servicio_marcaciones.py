@@ -54,6 +54,22 @@ class ServicioMarcaciones(IMarcaciones):
         print(f"[Marcaciones] Obtenidas {len(marcaciones)}/{result.count} — emp_code={codigo_empleado}")
         return result
 
+    async def obtener_marcaciones_por_terminal(
+        self, terminal_sn: str, fecha_inicio: str, page_size: int = 100
+    ) -> list[MarcacionesDto]:
+        marcaciones: list[MarcacionesDto] = []
+        page = 1
+        while True:
+            response_data = await self._client.get("iclock/api/transactions/", params={
+                "terminal_sn": terminal_sn, "start_time": fecha_inicio, "page": page, "page_size": page_size,
+            })
+            marcaciones.extend(MarcacionesDto(**marc) for marc in response_data.get("data", []))
+            if not response_data.get("next"):
+                break
+            page += 1
+        print(f"[Marcaciones] Obtenidas {len(marcaciones)} por terminal — SN={terminal_sn}")
+        return marcaciones
+
     async def eliminar_marcaciones_por_id(self, id_marcacion: str) -> None:
         await self._client.delete(f"iclock/api/transactions/{id_marcacion}/")
         print(f"[Marcaciones] Eliminada — ID={id_marcacion}")

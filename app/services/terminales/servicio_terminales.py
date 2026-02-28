@@ -2,6 +2,8 @@
 Servicio de terminales biométricos.
 Obtiene los datos desde la API REST de BioTime (iclock/api/terminals/).
 """
+from typing import Optional
+
 from app.clients.biotime_client import BioTimeClient
 from app.core.exceptions import BioTimeException
 from app.interfaces.terminales.interface_terminales import ITerminales
@@ -40,3 +42,16 @@ class ServicioTerminales(ITerminales):
         terminal = TerminalDto(**data[0])
         print(f"[Terminal] Obtenido — SN={sn} ID={terminal.id}")
         return terminal
+
+    async def buscar_por_ip(self, ip: str) -> Optional[TerminalDto]:
+        page = 1
+        while True:
+            response_data = await self._client.get("iclock/api/terminals/", params={"page": page, "page_size": 50})
+            for t in response_data.get("data", []):
+                if t.get("ip_address") == ip:
+                    return TerminalDto(**t)
+            if not response_data.get("next"):
+                break
+            page += 1
+        print(f"[Terminal] AVISO - Terminal no encontrado para IP={ip}")
+        return None

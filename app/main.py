@@ -12,7 +12,6 @@ from app.core.config import settings
 from app.core.scheduler import scheduler
 from app.db.conexion import cerrar_pool, iniciar_pool
 
-print(f"[App] {settings.ENVIRONMENT} v{settings.VERSION} | {settings.HOST}:{settings.PORT} | BioTime={settings.BIOTIME_BASE_URL}")
 
 if settings.TAREAS_HABILITADO:
     import app.services.tareas.servicio_tareas  # noqa: F401
@@ -27,7 +26,6 @@ async def lifespan(app: FastAPI):
     if settings.TAREAS_HABILITADO:
         scheduler.iniciar()
 
-    print("[App] Servidor listo")
     yield
 
     scheduler.detener()

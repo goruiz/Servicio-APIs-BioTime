@@ -3,8 +3,6 @@
 
 set -e
 
-echo "🚀 Iniciando Servicio APIs BioTime..."
-
 # Verificar si existe .env
 if [ ! -f .env ]; then
     echo "⚠️  No se encontró archivo .env"
@@ -16,7 +14,6 @@ fi
 
 # Activar entorno virtual si existe
 if [ -d "venv" ]; then
-    echo "🔧 Activando entorno virtual..."
     source venv/bin/activate
 else
     echo "⚠️  No se encontró entorno virtual."
@@ -25,9 +22,7 @@ else
 fi
 
 # Verificar dependencias
-echo "📦 Verificando dependencias..."
 pip install -q -r requirements.txt
 
 # Ejecutar la aplicación
-echo "✅ Iniciando servidor..."
 python -m app.main

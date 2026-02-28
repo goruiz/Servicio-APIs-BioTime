@@ -60,7 +60,6 @@ class Scheduler:
         for tarea in self._tareas:
             task = asyncio.create_task(_loop_periodico(tarea), name=tarea.nombre)
             self._asyncio_tasks.append(task)
-        print(f"[Scheduler] {len(self._tareas)} tarea(s) activa(s)")
 
     def detener(self) -> None:
         """Cancela todas las tareas periódicas. Llamar al cerrar la aplicación."""

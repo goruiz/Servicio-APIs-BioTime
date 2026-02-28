@@ -2,6 +2,8 @@
 Servicio de empleados.
 Lógica de negocio para interactuar con el recurso de empleados de BioTime.
 """
+from typing import Optional
+
 from app.clients.biotime_client import BioTimeClient
 from app.interfaces.empleado.interface_empleado import IEmpleado
 from app.schemas.biotime.common import PaginatedResponse
@@ -32,6 +34,13 @@ class ServicioEmpleado(IEmpleado):
         empleado = EmployeeDto(**response_data)
         print(f"[Empleado] Obtenido — ID={empleado_id} emp_code={empleado.emp_code}")
         return empleado
+
+    async def buscar_por_emp_code(self, emp_code: str) -> Optional[EmployeeDto]:
+        response_data = await self._client.get("personnel/api/employees/", params={"emp_code": emp_code})
+        empleados = response_data.get("data", [])
+        if not empleados:
+            return None
+        return EmployeeDto(**empleados[0])
 
     async def crear_empleado(self, datos: EmpleadoCreateUpdateDto) -> EmployeeDto:
         response_data = await self._client.post("personnel/api/employees/", json=datos.model_dump())

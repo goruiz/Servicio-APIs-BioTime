@@ -1,8 +1,6 @@
 @echo off
 REM Script de inicio rápido para Windows
 
-echo Iniciando Servicio APIs BioTime...
-
 REM Verificar si existe .env
 if not exist .env (
     echo No se encontro archivo .env
@@ -14,7 +12,6 @@ if not exist .env (
 
 REM Activar entorno virtual de Windows (venv-win) si existe
 if exist venv-win\Scripts\activate.bat (
-    echo Activando entorno virtual...
     call venv-win\Scripts\activate.bat
 ) else (
     echo No se encontro entorno virtual de Windows.
@@ -24,9 +21,7 @@ if exist venv-win\Scripts\activate.bat (
 )
 
 REM Verificar dependencias
-echo Verificando dependencias...
 pip install -q -r requirements.txt
 
 REM Ejecutar la aplicación
-echo Iniciando servidor...
 python -m app.main

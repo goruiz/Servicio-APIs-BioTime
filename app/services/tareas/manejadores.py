@@ -1,204 +1,185 @@
 """
 Manejadores de instrucciones de tareas de Preciso.
-Cada función recibe una TareaDto y el BioTimeClient, ejecuta la acción
-correspondiente en BioTime y devuelve el CompletarTareaPayload con el resultado.
+Cada función recibe una TareaDto y el BioTimeClient, ejecuta la accion
+correspondiente en BioTime y devuelve un CompletarTareaPayload.
 
 Formato de respuesta para Preciso:
-  - "0"                        → sin datos / sin error
-  - "campo1|campo2&campo1|..." → datos tabulados
+  "0"                        : sin datos o sin error
+  "campo1|campo2&campo1|..." : datos tabulados (pipes entre campos, ampersand entre registros)
 
-Mapeo de instrucciones a BioTime:
-  EMPMAR / EMPMAD → GET /iclock/api/transactions/ (por terminal)
-  DISDAT          → GET /iclock/api/terminals/ (datos del terminal)
-  EMPHUE          → GET /iclock/api/biodata/ (huellas del empleado)
-  DELHUE          → DELETE /iclock/api/biodata/
-  COPHUE / REPHUE → POST /iclock/api/biodata/ (copia de huellas)
-  EMPDAT          → POST /personnel/api/employees/ (enrolar empleado)
-  EMPDEL          → DELETE /personnel/api/employees/{emp_code}/
-  EMPUDT          → PATCH /personnel/api/employees/{emp_code}/
-  UPDTFH / ASGPRV / ADDADM / EMPCLA → Acción en terminal (no disponible via REST)
+Instrucciones y servicio que utilizan:
+  EMPMAR / EMPMAD : ServicioTerminales + ServicioMarcaciones
+  DISDAT          : ServicioTerminales
+  EMPHUE          : ServicioBiodata
+  DELHUE          : ServicioBiodata
+  COPHUE / REPHUE : ServicioTerminales + ServicioBiodata
+  EMPDAT          : ServicioEmpleado
+  EMPDEL          : ServicioEmpleado
+  EMPUDT          : ServicioEmpleado
+  UPDTFH / ASGPRV / ADDADM / EMPCLA : sin implementacion via REST
 """
 import datetime
-import json
-from typing import Optional
 
 from app.clients.biotime_client import BioTimeClient
 from app.core.config import settings
+from app.schemas.empleado.respuesta_empleado import EmpleadoCreateUpdateDto
 from app.schemas.tareas.tarea import CompletarTareaPayload, TareaDto
+from app.services.empleado.servicio_empleado import ServicioEmpleado
+from app.services.huellas.servicio_biodata import ServicioBiodata
+from app.services.marcaciones.servicio_marcaciones import ServicioMarcaciones
+from app.services.terminales.servicio_terminales import ServicioTerminales
 
 
-async def _obtener_sn_por_ip(client: BioTimeClient, ip: str) -> Optional[str]:
-    """
-    Busca el número de serie (SN) de un terminal a partir de su dirección IP.
-    Pagina sobre /iclock/api/terminals/ hasta encontrar la IP o agotar páginas.
-    """
-    page = 1
-    while True:
-        data = await client.get("iclock/api/terminals/", params={"page": page, "page_size": 50})
-        for terminal in data.get("data", []):
-            if terminal.get("ip_address") == ip:
-                return terminal.get("sn")
-        if not data.get("next"):
-            break
-        page += 1
-    print(f"[Tareas] AVISO - Terminal no encontrado para IP={ip}")
-    return None
+# Factories de servicios
 
 
+# Devuelve una instancia de ServicioEmpleado para el cliente de la tarea actual
+def _servicio_empleado(client: BioTimeClient) -> ServicioEmpleado:
+    return ServicioEmpleado(client)
+
+
+# Devuelve una instancia de ServicioTerminales para el cliente de la tarea actual
+def _servicio_terminales(client: BioTimeClient) -> ServicioTerminales:
+    return ServicioTerminales(client)
+
+
+# Devuelve una instancia de ServicioMarcaciones para el cliente de la tarea actual
+def _servicio_marcaciones(client: BioTimeClient) -> ServicioMarcaciones:
+    return ServicioMarcaciones(client)
+
+
+# Devuelve una instancia de ServicioBiodata para el cliente de la tarea actual
+def _servicio_biodata(client: BioTimeClient) -> ServicioBiodata:
+    return ServicioBiodata(client)
+
+
+# Helpers
+
+
+# Parsea el detalle de una tarea de empleado y construye el DTO con los datos de configuracion por defecto
+def _parsear_datos_empleado(detalle: str, settings_) -> tuple[str, EmpleadoCreateUpdateDto]:
+    partes = detalle.split("|")
+    emp_code = partes[0]
+    nombre_completo = partes[1] if len(partes) > 1 else emp_code
+    nombre_partes = nombre_completo.strip().split(" ", 1)
+    first_name = nombre_partes[0]
+    last_name = nombre_partes[1] if len(nombre_partes) > 1 else ""
+    datos = EmpleadoCreateUpdateDto(
+        emp_code=emp_code,
+        first_name=first_name,
+        last_name=last_name,
+        department=settings_.BIOTIME_DEFAULT_DEPARTMENT_ID,
+        area=[settings_.BIOTIME_DEFAULT_AREA_ID],
+    )
+    return emp_code, datos
+
+
+# Manejadores de marcaciones
+
+
+# Lee las marcaciones del terminal de las ultimas 24h y las envia a Preciso
 async def ejecutar_empmar(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """EMPMAR: Lee marcaciones del terminal y las envía a Preciso."""
-    sn = await _obtener_sn_por_ip(client, tarea.ip)
-    if not sn:
+    terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
+    if not terminal:
         return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
     fecha_inicio = (datetime.datetime.now() - datetime.timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
-    marcaciones: list[str] = []
-    page = 1
-    while True:
-        data = await client.get("iclock/api/transactions/", params={
-            "terminal_sn": sn, "start_time": fecha_inicio, "page": page, "page_size": 100,
-        })
-        for registro in data.get("data", []):
-            emp_code = registro.get("emp_code", "")
-            punch_time = registro.get("punch_time", "")
-            if emp_code and punch_time:
-                marcaciones.append(f"{emp_code}|{punch_time}")
-        if not data.get("next"):
-            break
-        page += 1
+    marcaciones = await _servicio_marcaciones(client).obtener_marcaciones_por_terminal(terminal.sn, fecha_inicio)
 
-    respuesta = "&".join(marcaciones) if marcaciones else "0"
+    partes = [f"{m.emp_code}|{m.punch_time}" for m in marcaciones]
+    respuesta = "&".join(partes) if partes else "0"
     print(f"[Tareas] EMPMAR — IP={tarea.ip} marcaciones={len(marcaciones)}")
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion, respuesta=respuesta)
 
 
+# Lee las marcaciones del terminal igual que EMPMAR (el borrado lo realiza el daemon directamente en el dispositivo)
 async def ejecutar_empmad(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """EMPMAD: Lee marcaciones del terminal (igual que EMPMAR) y las borra del dispositivo."""
     payload = await ejecutar_empmar(tarea, client)
     payload.instruccion = "EMPMAD"
     return payload
 
 
+# Manejadores de terminales
+
+
+# Obtiene los datos del dispositivo: numero de serie, version de firmware y MAC
 async def ejecutar_disdat(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """DISDAT: Obtiene datos del dispositivo (serie, firmware, mac)."""
-    sn = await _obtener_sn_por_ip(client, tarea.ip)
-    if not sn:
+    terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
+    if not terminal:
         return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
-    page = 1
-    terminal_data: Optional[dict] = None
-    while True:
-        data = await client.get("iclock/api/terminals/", params={"page": page, "page_size": 50})
-        for terminal in data.get("data", []):
-            if terminal.get("sn") == sn:
-                terminal_data = terminal
-                break
-        if terminal_data or not data.get("next"):
-            break
-        page += 1
-
-    if not terminal_data:
-        return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
-
-    respuesta = f"{terminal_data.get('sn', '')}|{terminal_data.get('firmware_ver', '')}|{terminal_data.get('mac', '')}"
-    print(f"[Tareas] DISDAT — IP={tarea.ip} SN={sn}")
+    respuesta = f"{terminal.sn}|{terminal.firmware_ver or ''}|{terminal.mac or ''}"
+    print(f"[Tareas] DISDAT — IP={tarea.ip} SN={terminal.sn}")
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion, respuesta=respuesta)
 
 
+# Manejadores de huellas dactilares
+
+
+# Obtiene los templates biometricos de un empleado desde BioTime
 async def ejecutar_emphue(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """EMPHUE: Obtiene huellas de un empleado desde BioTime."""
     emp_code = tarea.detalle
-    huellas: list[str] = []
-    page = 1
-    while True:
-        data = await client.get("iclock/api/biodata/", params={"emp_code": emp_code, "page": page, "page_size": 50})
-        for registro in data.get("data", []):
-            bio_data = registro.get("bio_data") or registro.get("biodata") or ""
-            if bio_data:
-                huellas.append(bio_data)
-        if not data.get("next"):
-            break
-        page += 1
-
-    respuesta = "&".join(huellas) if huellas else "0"
-    print(f"[Tareas] EMPHUE — emp_code={emp_code} huellas={len(huellas)}")
+    templates = await _servicio_biodata(client).obtener_templates_por_emp_code(emp_code)
+    respuesta = "&".join(templates) if templates else "0"
+    print(f"[Tareas] EMPHUE — emp_code={emp_code} huellas={len(templates)}")
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion, respuesta=respuesta)
 
 
+# Elimina todos los templates biometricos de un empleado en BioTime
 async def ejecutar_delhue(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """DELHUE: Elimina las huellas de un empleado en BioTime."""
     emp_code = tarea.detalle
     try:
-        await client.delete("iclock/api/biodata/", params={"emp_code": emp_code})
+        await _servicio_biodata(client).eliminar_por_emp_code(emp_code)
         print(f"[Tareas] DELHUE — emp_code={emp_code}")
     except Exception as e:
         print(f"[Tareas] ERROR - DELHUE emp_code={emp_code}: {e}")
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
+# Copia un template biometrico al terminal indicado. detalle: "emp_code|bio_data"
 async def ejecutar_cophue(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """COPHUE: Copia una huella a otro terminal. detalle = "emp_code|huella_data" """
     partes = tarea.detalle.split("|", 1)
     if len(partes) == 2:
         emp_code, bio_data = partes
         try:
-            sn = await _obtener_sn_por_ip(client, tarea.ip)
-            await client.post("iclock/api/biodata/", json={"emp_code": emp_code, "bio_data": bio_data, "terminal_sn": sn})
+            terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
+            sn = terminal.sn if terminal else ""
+            await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
             print(f"[Tareas] COPHUE — IP={tarea.ip} emp_code={emp_code}")
         except Exception as e:
             print(f"[Tareas] ERROR - COPHUE IP={tarea.ip}: {e}")
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
+# Replica un template biometrico al terminal indicado. detalle: "emp_code|bio_data"
 async def ejecutar_rephue(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """REPHUE: Replica huellas entre terminales (misma lógica que COPHUE)."""
     partes = tarea.detalle.split("|", 1)
     if len(partes) == 2:
         emp_code, bio_data = partes
         try:
-            sn = await _obtener_sn_por_ip(client, tarea.ip)
-            await client.post("iclock/api/biodata/", json={"emp_code": emp_code, "bio_data": bio_data, "terminal_sn": sn})
+            terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
+            sn = terminal.sn if terminal else ""
+            await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
             print(f"[Tareas] REPHUE — IP={tarea.ip} emp_code={emp_code}")
         except Exception as e:
             print(f"[Tareas] ERROR - REPHUE IP={tarea.ip}: {e}")
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
+# Manejadores de empleados
 
+
+# Crea o actualiza un empleado en BioTime segun si ya existe. detalle: "emp_code|nombre|admin|tarjeta"
 async def ejecutar_empdat(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """EMPDAT: Registra o actualiza un empleado en BioTime.
-    detalle = "emp_code|nombre completo|admin(S/N)|tarjeta"
-    """
-    partes = tarea.detalle.split("|")
-    emp_code = partes[0]
-    nombre_completo = partes[1] if len(partes) > 1 else emp_code
-
-    nombre_partes = nombre_completo.strip().split(" ", 1)
-    first_name = nombre_partes[0]
-    last_name = nombre_partes[1] if len(nombre_partes) > 1 else ""
-
+    emp_code, datos = _parsear_datos_empleado(tarea.detalle, settings)
+    service = _servicio_empleado(client)
     try:
-        data = await client.get("api/v1/empleados/", params={"emp_code": emp_code})
-        empleados = data.get("data", [])
-
-        if empleados:
-            empleado_id = empleados[0]["id"]
-            await client.put(f"personnel/api/employees/{empleado_id}/", json={
-                "emp_code": emp_code,
-                "first_name": first_name,
-                "last_name": last_name,
-                "department": settings.BIOTIME_DEFAULT_DEPARTMENT_ID,
-                "area": [settings.BIOTIME_DEFAULT_AREA_ID],
-            })
-            print(f"[Tareas] EMPDAT — actualizado emp_code={emp_code} ID BioTime={empleado_id}")
+        empleado = await service.buscar_por_emp_code(emp_code)
+        if empleado:
+            await service.actualizar_empleado(empleado_id=empleado.id, datos=datos)
+            print(f"[Tareas] EMPDAT — actualizado emp_code={emp_code} ID BioTime={empleado.id}")
         else:
-            await client.post("personnel/api/employees/", json={
-                "emp_code": emp_code,
-                "first_name": first_name,
-                "last_name": last_name,
-                "department": settings.BIOTIME_DEFAULT_DEPARTMENT_ID,
-                "area": [settings.BIOTIME_DEFAULT_AREA_ID],
-            })
+            await service.crear_empleado(datos=datos)
             print(f"[Tareas] EMPDAT — creado emp_code={emp_code}")
     except Exception as e:
         print(f"[Tareas] ERROR - EMPDAT emp_code={emp_code}: {e}")
@@ -210,49 +191,65 @@ async def ejecutar_empdat(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
     )
 
 
+# Elimina un empleado de BioTime buscandolo por emp_code. detalle: "emp_code"
 async def ejecutar_empdel(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """EMPDEL: Elimina un empleado de BioTime."""
     emp_code = tarea.detalle
+    service = _servicio_empleado(client)
     try:
-        await client.delete(f"personnel/api/employees/{emp_code}/")
-        print(f"[Tareas] EMPDEL — emp_code={emp_code}")
+        empleado = await service.buscar_por_emp_code(emp_code)
+        if empleado:
+            await service.eliminar_empleados([empleado.id])
+            print(f"[Tareas] EMPDEL — emp_code={emp_code} ID BioTime={empleado.id}")
+        else:
+            print(f"[Tareas] AVISO - EMPDEL emp_code={emp_code}: no encontrado en BioTime")
     except Exception as e:
         print(f"[Tareas] ERROR - EMPDEL emp_code={emp_code}: {e}")
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
+# Actualiza los datos de un empleado en BioTime. detalle: "emp_code|nombre|admin|tarjeta"
 async def ejecutar_empudt(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """EMPUDT: Actualiza datos de un empleado en BioTime. TODO: mapeo de campos pendiente."""
-    print(f"[Tareas] AVISO - EMPUDT pendiente de implementación — detalle={tarea.detalle}")
+    emp_code, datos = _parsear_datos_empleado(tarea.detalle, settings)
+    service = _servicio_empleado(client)
+    try:
+        empleado = await service.buscar_por_emp_code(emp_code)
+        if empleado:
+            await service.actualizar_empleado(empleado_id=empleado.id, datos=datos)
+            print(f"[Tareas] EMPUDT — actualizado emp_code={emp_code} ID BioTime={empleado.id}")
+        else:
+            print(f"[Tareas] AVISO - EMPUDT emp_code={emp_code}: no encontrado en BioTime")
+    except Exception as e:
+        print(f"[Tareas] ERROR - EMPUDT emp_code={emp_code}: {e}")
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
+# Manejadores sin implementacion via REST
+
+
+# BioTime sincroniza la hora automaticamente via NTP, no se requiere accion
 async def ejecutar_updtfh(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """UPDTFH: BioTime sincroniza hora automáticamente vía NTP. Sin acción necesaria."""
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
+# Pendiente de implementacion: asignacion de privilegios en terminal
 async def ejecutar_asgprv(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """ASGPRV: Asigna privilegio en terminal. TODO: pendiente de implementación."""
-    print(f"[Tareas] AVISO - ASGPRV pendiente de implementación")
+    print(f"[Tareas] AVISO - ASGPRV pendiente de implementacion")
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
+# Pendiente de implementacion: agregar administrador en terminal
 async def ejecutar_addadm(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """ADDADM: Agrega administrador en terminal. TODO: pendiente de implementación."""
-    print(f"[Tareas] AVISO - ADDADM pendiente de implementación")
+    print(f"[Tareas] AVISO - ADDADM pendiente de implementacion")
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
+# Pendiente de implementacion: verificacion de PIN de empleados en terminal
 async def ejecutar_empcla(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """EMPCLA: Verifica PIN de empleados en terminal. TODO: pendiente de implementación."""
-    print(f"[Tareas] AVISO - EMPCLA pendiente de implementación")
+    print(f"[Tareas] AVISO - EMPCLA pendiente de implementacion")
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
-# ------------------------------------------------------------------
-# Tabla de despacho de instrucciones
-# ------------------------------------------------------------------
+# Tabla de despacho: mapea cada instruccion de Preciso a su manejador correspondiente
 
 _MANEJADORES = {
     "EMPMAR": ejecutar_empmar,
@@ -272,14 +269,11 @@ _MANEJADORES = {
 }
 
 
+# Despacha la tarea al manejador correspondiente segun la instruccion recibida
 async def ejecutar(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    """
-    Despachador principal. Delega al manejador correspondiente según la instrucción.
-    Si la instrucción no es reconocida, completa la tarea sin acción.
-    """
     manejador = _MANEJADORES.get(tarea.instruccion)
     if not manejador:
-        print(f"[Tareas] AVISO - Instrucción desconocida: {tarea.instruccion} (ID={tarea.id_tarea})")
+        print(f"[Tareas] AVISO - Instruccion desconocida: {tarea.instruccion} (ID={tarea.id_tarea})")
         return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
     print(f"[Tareas] Ejecutando ID={tarea.id_tarea} {tarea.instruccion} — IP={tarea.ip}")

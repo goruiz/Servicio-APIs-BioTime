@@ -12,7 +12,6 @@ _pool: asyncpg.Pool | None = None
 async def iniciar_pool() -> None:
     """Crea el pool de conexiones a PostgreSQL. Llamar en el startup de FastAPI."""
     global _pool
-    print(f"[BD] Conectando a {settings.DB_HOST}:{settings.DB_PUERTO}/{settings.DB_NOMBRE}...")
     _pool = await asyncpg.create_pool(
         host=settings.DB_HOST,
         port=settings.DB_PUERTO,
@@ -22,7 +21,6 @@ async def iniciar_pool() -> None:
         min_size=2,
         max_size=10,
     )
-    print(f"[BD] Conectado — {settings.DB_HOST}:{settings.DB_PUERTO}/{settings.DB_NOMBRE}")
 
 
 async def cerrar_pool() -> None:

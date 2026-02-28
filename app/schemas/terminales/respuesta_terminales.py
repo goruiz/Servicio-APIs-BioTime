@@ -22,4 +22,5 @@ class TerminalDto(BaseDto):
     sync_time: Optional[str] = Field(None, description="Última fecha/hora de sincronización")
     heartbeat: Optional[int] = Field(None, description="Intervalo de heartbeat en segundos")
     transfer_mode: Optional[int] = Field(None, description="Modo de transferencia de datos")
+    mac: Optional[str] = Field(None, description="Dirección MAC del dispositivo")
     is_reg: Optional[int] = Field(None, description="Indica si el terminal está registrado (1=sí, 0=no)")
