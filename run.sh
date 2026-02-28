@@ -6,8 +6,8 @@ set -e
 # Verificar si existe .env
 if [ ! -f .env ]; then
     echo "⚠️  No se encontró archivo .env"
-    echo "📝 Copiando .env.example a .env..."
-    cp .env.example .env
+    echo "📝 Copiando .env.desarrollo a .env..."
+    cp .env.desarrollo .env
     echo "✅ Archivo .env creado. Por favor configura tus credenciales de BioTime."
     exit 1
 fi

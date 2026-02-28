@@ -44,7 +44,13 @@ class ServicioEmpleado(IEmpleado):
 
     async def crear_empleado(self, datos: EmpleadoCreateUpdateDto) -> EmployeeDto:
         response_data = await self._client.post("personnel/api/employees/", json=datos.model_dump())
-        empleado = EmployeeDto(**response_data)
+        # BioTime a veces no incluye id en la respuesta del POST; lo buscamos por emp_code
+        if response_data.get("id"):
+            empleado = EmployeeDto(**response_data)
+        else:
+            empleado = await self.buscar_por_emp_code(datos.emp_code)
+            if not empleado:
+                raise ValueError(f"Empleado creado pero no encontrado en BioTime: emp_code={datos.emp_code}")
         print(f"[Empleado] Creado — ID={empleado.id} emp_code={empleado.emp_code}")
         return empleado
 
@@ -52,7 +58,11 @@ class ServicioEmpleado(IEmpleado):
         response_data = await self._client.put(
             f"personnel/api/employees/{empleado_id}/", json=datos.model_dump()
         )
-        empleado = EmployeeDto(**response_data)
+        # BioTime a veces no incluye id en la respuesta del PUT; lo obtenemos por ID directo
+        if response_data.get("id"):
+            empleado = EmployeeDto(**response_data)
+        else:
+            empleado = await self.obtener_empleado_por_id(empleado_id)
         print(f"[Empleado] Actualizado — ID={empleado_id}")
         return empleado
 
