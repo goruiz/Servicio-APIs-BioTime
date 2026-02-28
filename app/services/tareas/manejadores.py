@@ -56,6 +56,14 @@ def _servicio_biodata(client: BioTimeClient) -> ServicioBiodata:
 # Helpers
 
 
+# Imprime en consola el resultado final de una tarea: exito o error con su mensaje
+def _log_resultado(tarea: TareaDto, ok: bool, error: Exception = None) -> None:
+    if ok:
+        print(f"[Tareas] OK  - ID={tarea.id_tarea} {tarea.instruccion} completado")
+    else:
+        print(f"[Tareas] ERR - ID={tarea.id_tarea} {tarea.instruccion} fallido: {error}")
+
+
 # Parsea el detalle de una tarea de empleado y construye el DTO con los datos de configuracion por defecto
 def _parsear_datos_empleado(detalle: str, settings_) -> tuple[str, EmpleadoCreateUpdateDto]:
     partes = detalle.split("|")
@@ -128,41 +136,25 @@ async def ejecutar_emphue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 # Elimina todos los templates biometricos de un empleado en BioTime
 async def ejecutar_delhue(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
     emp_code = tarea.detalle
-    try:
-        await _servicio_biodata(client).eliminar_por_emp_code(emp_code)
-        print(f"[Tareas] DELHUE — emp_code={emp_code}")
-    except Exception as e:
-        print(f"[Tareas] ERROR - DELHUE emp_code={emp_code}: {e}")
+    await _servicio_biodata(client).eliminar_por_emp_code(emp_code)
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
 # Copia un template biometrico al terminal indicado. detalle: "emp_code|bio_data"
 async def ejecutar_cophue(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    partes = tarea.detalle.split("|", 1)
-    if len(partes) == 2:
-        emp_code, bio_data = partes
-        try:
-            terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
-            sn = terminal.sn if terminal else ""
-            await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
-            print(f"[Tareas] COPHUE — IP={tarea.ip} emp_code={emp_code}")
-        except Exception as e:
-            print(f"[Tareas] ERROR - COPHUE IP={tarea.ip}: {e}")
+    emp_code, bio_data = tarea.detalle.split("|", 1)
+    terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
+    sn = terminal.sn if terminal else ""
+    await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
 # Replica un template biometrico al terminal indicado. detalle: "emp_code|bio_data"
 async def ejecutar_rephue(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
-    partes = tarea.detalle.split("|", 1)
-    if len(partes) == 2:
-        emp_code, bio_data = partes
-        try:
-            terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
-            sn = terminal.sn if terminal else ""
-            await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
-            print(f"[Tareas] REPHUE — IP={tarea.ip} emp_code={emp_code}")
-        except Exception as e:
-            print(f"[Tareas] ERROR - REPHUE IP={tarea.ip}: {e}")
+    emp_code, bio_data = tarea.detalle.split("|", 1)
+    terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
+    sn = terminal.sn if terminal else ""
+    await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
@@ -173,17 +165,13 @@ async def ejecutar_rephue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 async def ejecutar_empdat(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
     emp_code, datos = _parsear_datos_empleado(tarea.detalle, settings)
     service = _servicio_empleado(client)
-    try:
-        empleado = await service.buscar_por_emp_code(emp_code)
-        if empleado:
-            await service.actualizar_empleado(empleado_id=empleado.id, datos=datos)
-            print(f"[Tareas] EMPDAT — actualizado emp_code={emp_code} ID BioTime={empleado.id}")
-        else:
-            await service.crear_empleado(datos=datos)
-            print(f"[Tareas] EMPDAT — creado emp_code={emp_code}")
-    except Exception as e:
-        print(f"[Tareas] ERROR - EMPDAT emp_code={emp_code}: {e}")
-
+    empleado = await service.buscar_por_emp_code(emp_code)
+    if empleado:
+        await service.actualizar_empleado(empleado_id=empleado.id, datos=datos)
+        print(f"[Tareas] EMPDAT — actualizado emp_code={emp_code} ID BioTime={empleado.id}")
+    else:
+        await service.crear_empleado(datos=datos)
+        print(f"[Tareas] EMPDAT — creado emp_code={emp_code}")
     return CompletarTareaPayload(
         id_tarea=tarea.id_tarea,
         instruccion=tarea.instruccion,
@@ -195,15 +183,12 @@ async def ejecutar_empdat(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 async def ejecutar_empdel(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
     emp_code = tarea.detalle
     service = _servicio_empleado(client)
-    try:
-        empleado = await service.buscar_por_emp_code(emp_code)
-        if empleado:
-            await service.eliminar_empleados([empleado.id])
-            print(f"[Tareas] EMPDEL — emp_code={emp_code} ID BioTime={empleado.id}")
-        else:
-            print(f"[Tareas] AVISO - EMPDEL emp_code={emp_code}: no encontrado en BioTime")
-    except Exception as e:
-        print(f"[Tareas] ERROR - EMPDEL emp_code={emp_code}: {e}")
+    empleado = await service.buscar_por_emp_code(emp_code)
+    if empleado:
+        await service.eliminar_empleados([empleado.id])
+        print(f"[Tareas] EMPDEL — emp_code={emp_code} ID BioTime={empleado.id}")
+    else:
+        print(f"[Tareas] AVISO - EMPDEL emp_code={emp_code}: no encontrado en BioTime")
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
@@ -211,15 +196,12 @@ async def ejecutar_empdel(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 async def ejecutar_empudt(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
     emp_code, datos = _parsear_datos_empleado(tarea.detalle, settings)
     service = _servicio_empleado(client)
-    try:
-        empleado = await service.buscar_por_emp_code(emp_code)
-        if empleado:
-            await service.actualizar_empleado(empleado_id=empleado.id, datos=datos)
-            print(f"[Tareas] EMPUDT — actualizado emp_code={emp_code} ID BioTime={empleado.id}")
-        else:
-            print(f"[Tareas] AVISO - EMPUDT emp_code={emp_code}: no encontrado en BioTime")
-    except Exception as e:
-        print(f"[Tareas] ERROR - EMPUDT emp_code={emp_code}: {e}")
+    empleado = await service.buscar_por_emp_code(emp_code)
+    if empleado:
+        await service.actualizar_empleado(empleado_id=empleado.id, datos=datos)
+        print(f"[Tareas] EMPUDT — actualizado emp_code={emp_code} ID BioTime={empleado.id}")
+    else:
+        print(f"[Tareas] AVISO - EMPUDT emp_code={emp_code}: no encontrado en BioTime")
     return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
@@ -269,7 +251,7 @@ _MANEJADORES = {
 }
 
 
-# Despacha la tarea al manejador correspondiente segun la instruccion recibida
+# Despacha la tarea al manejador y registra el resultado de exito o error
 async def ejecutar(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayload:
     manejador = _MANEJADORES.get(tarea.instruccion)
     if not manejador:
@@ -277,4 +259,10 @@ async def ejecutar(tarea: TareaDto, client: BioTimeClient) -> CompletarTareaPayl
         return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
     print(f"[Tareas] Ejecutando ID={tarea.id_tarea} {tarea.instruccion} — IP={tarea.ip}")
-    return await manejador(tarea, client)
+    try:
+        resultado = await manejador(tarea, client)
+        _log_resultado(tarea, ok=True)
+        return resultado
+    except Exception as e:
+        _log_resultado(tarea, ok=False, error=e)
+        return CompletarTareaPayload(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
