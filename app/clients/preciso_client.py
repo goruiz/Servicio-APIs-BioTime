@@ -8,7 +8,7 @@ from typing import Any, Optional
 import httpx
 
 from app.core.config import settings
-from app.schemas.tareas.tarea import CompletarTareaPayload, TareaDto
+from app.schemas.tareas.tarea import CompletarTarea, TareaDto
 
 
 class PrecisoAuthenticationError(Exception):
@@ -43,11 +43,13 @@ class PrecisoClient:
             "scope": "",
         }
         try:
+            print(f"[Preciso] Autenticando -> POST {self._base_url}oauth/token (user={settings.PRECISO_USERNAME!r})")
             async with httpx.AsyncClient(timeout=self._timeout) as client:
                 response = await client.post(
                     f"{self._base_url}oauth/token",
                     json=payload,
                 )
+                print(f"[Preciso] <- HTTP {response.status_code} | {response.text[:300]}")
                 if response.status_code != 200:
                     print(f"[Preciso] ERROR - Login fallido: HTTP {response.status_code} — {response.text[:300]}")
                     raise PrecisoAuthenticationError(
@@ -55,6 +57,7 @@ class PrecisoClient:
                     )
                 data = response.json()
                 self._token = data["access_token"]
+                print(f"[Preciso] Login exitoso")
                 return self._token
         except httpx.RequestError as e:
             print(f"[Preciso] ERROR - Sin conexión: {e}")
@@ -84,9 +87,11 @@ class PrecisoClient:
         try:
             headers = await self._get_headers()
             async with httpx.AsyncClient(timeout=self._timeout) as client:
+                print(f"[Preciso] -> {method} {url}" + (f" params={params}" if params else "") + (f" body={str(json)[:300]}" if json else ""))
                 response = await client.request(
                     method, url, headers=headers, params=params, json=json
                 )
+                print(f"[Preciso] <- HTTP {response.status_code} | {response.text[:400]}")
 
                 # Token expirado: renovar y reintentar una vez
                 if response.status_code == 401:
@@ -96,6 +101,7 @@ class PrecisoClient:
                     response = await client.request(
                         method, url, headers=headers, params=params, json=json
                     )
+                    print(f"[Preciso] <- HTTP {response.status_code} (reintento) | {response.text[:400]}")
 
                 response.raise_for_status()
 
@@ -120,11 +126,13 @@ class PrecisoClient:
     async def obtener_tareas(self) -> list[TareaDto]:
         """GET /api/tareas → {"tareas": [...]}"""
         data = await self._request("GET", "api/tareas")
+        print(f"[Preciso] obtener_tareas raw: {data}")
         tareas_raw = data.get("tareas", [])
         return [TareaDto(**t) for t in tareas_raw]
 
-    async def completar_tarea(self, payload: CompletarTareaPayload) -> dict:
+    async def completar_tarea(self, payload: CompletarTarea) -> dict:
         """POST /api/completar_tarea"""
+        print(f"[Preciso] completar_tarea payload: {payload.model_dump()}")
         return await self._request(
             "POST",
             "api/completar_tarea",

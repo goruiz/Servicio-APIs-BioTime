@@ -30,6 +30,7 @@ class ServicioTareas(ITareas):
         2. Ejecuta cada tarea contra BioTime
         3. Reporta el resultado a Preciso
         """
+        print(f"[Tareas] -- Ciclo iniciado")
         try:
             tareas = await self._preciso.obtener_tareas()
         except (PrecisoAuthenticationError, PrecisoConnectionError) as e:
@@ -37,13 +38,20 @@ class ServicioTareas(ITareas):
             return
 
         if not tareas:
-            return  # Sin ruido cuando no hay tareas
+            print(f"[Tareas] Sin tareas pendientes")
+            return
 
         print(f"[Tareas] {len(tareas)} tarea(s) pendiente(s)")
         for tarea in tareas:
+            print(
+                f"[Tareas] Procesando ID={tarea.id_tarea} | instruccion={tarea.instruccion}"
+                f" | ip={tarea.ip} | id_tabla={tarea.id_tabla} | detalle={tarea.detalle!r}"
+            )
             try:
                 payload = await manejadores.ejecutar(tarea, self._biotime)
-                await self._preciso.completar_tarea(payload)
+                print(f"[Tareas] Payload generado: {payload.model_dump()}")
+                respuesta = await self._preciso.completar_tarea(payload)
+                print(f"[Tareas] completar_tarea respondio: {respuesta}")
             except (PrecisoAuthenticationError, PrecisoConnectionError) as e:
                 print(f"[Tareas] ERROR - No se pudo completar tarea ID={tarea.id_tarea}: {e}")
             except Exception as e:

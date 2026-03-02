@@ -14,7 +14,7 @@ class TareaDto(BaseModel):
     id_tabla: int
 
 
-class CompletarTareaPayload(BaseModel):
+class CompletarTarea(BaseModel):
     """Payload para marcar una tarea como completada en Preciso (POST /api/completar_tarea)."""
 
     model_config = {"extra": "allow"}
