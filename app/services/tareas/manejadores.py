@@ -22,6 +22,7 @@ import datetime
 
 from app.clients.biotime_client import BioTimeClient
 from app.core.config import settings
+from app.db.conexion import obtener_pool
 from app.schemas.empleado.respuesta_empleado import EmpleadoCreateUpdateDto
 from app.schemas.tareas.tarea import CompletarTarea, TareaDto
 from app.services.empleado.servicio_empleado import ServicioEmpleado
@@ -50,7 +51,7 @@ def _servicio_marcaciones(client: BioTimeClient) -> ServicioMarcaciones:
 
 # Devuelve una instancia de ServicioBiodata para el cliente de la tarea actual
 def _servicio_biodata(client: BioTimeClient) -> ServicioBiodata:
-    return ServicioBiodata(client)
+    return ServicioBiodata(client, obtener_pool())
 
 
 # Helpers
@@ -114,11 +115,12 @@ async def ejecutar_empmad(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 async def ejecutar_disdat(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
     terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
     if not terminal:
-        return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
+        print(f"[Tareas] DISDAT — IP={tarea.ip} no encontrado en BioTime, cerrando tarea sin datos")
+        return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion, id_tabla=tarea.id_tabla, respuesta="||")
 
     respuesta = f"{terminal.sn}|{terminal.firmware_ver or ''}|{terminal.mac or ''}"
     print(f"[Tareas] DISDAT — IP={tarea.ip} SN={terminal.sn}")
-    return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion, respuesta=respuesta)
+    return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion, id_tabla=tarea.id_tabla, respuesta=respuesta)
 
 
 # Manejadores de huellas dactilares
@@ -143,18 +145,30 @@ async def ejecutar_delhue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 # Copia un template biometrico al terminal indicado. detalle: "emp_code|bio_data"
 async def ejecutar_cophue(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
     emp_code, bio_data = tarea.detalle.split("|", 1)
-    terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
-    sn = terminal.sn if terminal else ""
-    await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
+    if bio_data and bio_data != "0":
+        try:
+            terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
+            sn = terminal.sn if terminal else ""
+            await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
+        except Exception as e:
+            print(f"[Tareas] AVISO - COPHUE no pudo registrar template en BioTime: {e}")
+    else:
+        print(f"[Tareas] COPHUE — emp_code={emp_code} sin template válido, cerrando tarea")
     return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
 # Replica un template biometrico al terminal indicado. detalle: "emp_code|bio_data"
 async def ejecutar_rephue(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
     emp_code, bio_data = tarea.detalle.split("|", 1)
-    terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
-    sn = terminal.sn if terminal else ""
-    await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
+    if bio_data and bio_data != "0":
+        try:
+            terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
+            sn = terminal.sn if terminal else ""
+            await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
+        except Exception as e:
+            print(f"[Tareas] AVISO - REPHUE no pudo registrar template en BioTime: {e}")
+    else:
+        print(f"[Tareas] REPHUE — emp_code={emp_code} sin template válido, cerrando tarea")
     return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 

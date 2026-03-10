@@ -2,32 +2,34 @@
 Servicio de biodata (templates biométricos) vía API REST de BioTime.
 Usado internamente por los manejadores de tareas (EMPHUE, DELHUE, COPHUE, REPHUE).
 No tiene ruta HTTP propia porque la API REST de BioTime no lo expone como recurso público.
+
+Lectura de templates (EMPHUE): usa PostgreSQL directo (iclock_biodata), ya que el endpoint
+iclock/api/biodata/ no existe en todas las versiones de BioTime.
+Escritura/borrado (COPHUE, REPHUE, DELHUE): usa la API REST de BioTime.
 """
+import asyncpg
+
 from app.clients.biotime_client import BioTimeClient
+from app.db.repositorios.repositorio_huellas import RepositorioHuellas
+from app.services.empleado.servicio_empleado import ServicioEmpleado
 
 
 class ServicioBiodata:
-    """Acceso a iclock/api/biodata/ de BioTime para operaciones de templates biométricos."""
+    """Acceso a templates biométricos: lectura vía PostgreSQL, escritura/borrado vía BioTime REST."""
 
-    def __init__(self, client: BioTimeClient) -> None:
+    def __init__(self, client: BioTimeClient, pool: asyncpg.Pool) -> None:
         self._client = client
+        self._pool = pool
 
     async def obtener_templates_por_emp_code(self, emp_code: str) -> list[str]:
-        """Devuelve los templates biométricos (bio_data) de un empleado, paginando internamente."""
-        templates: list[str] = []
-        page = 1
-        while True:
-            data = await self._client.get(
-                "iclock/api/biodata/", params={"emp_code": emp_code, "page": page, "page_size": 50}
-            )
-            for registro in data.get("data", []):
-                bio_data = registro.get("bio_data") or registro.get("biodata") or ""
-                if bio_data:
-                    templates.append(bio_data)
-            if not data.get("next"):
-                break
-            page += 1
-        print(f"[Biodata] Obtenidos {len(templates)} templates — emp_code={emp_code}")
+        """Devuelve los bio_tmp de un empleado consultando PostgreSQL directamente."""
+        empleado = await ServicioEmpleado(self._client).buscar_por_emp_code(emp_code)
+        if not empleado:
+            print(f"[Biodata] emp_code={emp_code} no encontrado en BioTime")
+            return []
+        repositorio = RepositorioHuellas(self._pool)
+        templates = await repositorio.obtener_templates_por_empleado(empleado.id)
+        print(f"[Biodata] Obtenidos {len(templates)} templates — emp_code={emp_code} (employee_id={empleado.id})")
         return templates
 
     async def eliminar_por_emp_code(self, emp_code: str) -> None:

@@ -45,3 +45,12 @@ class RepositorioHuellas:
                 offset,
             )
         return total, [dict(fila) for fila in filas]
+
+    async def obtener_templates_por_empleado(self, employee_id: int) -> list[str]:
+        """Devuelve todos los bio_tmp no nulos de un empleado (sin paginación)."""
+        async with self._pool.acquire() as conn:
+            filas = await conn.fetch(
+                f"SELECT bio_tmp FROM {self._tabla} WHERE employee_id = $1 AND bio_tmp IS NOT NULL ORDER BY id",
+                employee_id,
+            )
+        return [str(fila["bio_tmp"]) for fila in filas]
