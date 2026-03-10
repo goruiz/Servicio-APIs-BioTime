@@ -6,6 +6,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException, Query
 
 from app.api.dependencias import EmpleadoDependencia, SincronizacionDependencia
+from app.core.config import settings
 from app.core.exceptions import BioTimeException
 from app.schemas.empleado.respuesta_empleado import EmpleadoCreateUpdateDto, EmployeeDto
 from app.schemas.respuesta_comun import SuccessResponse
@@ -60,6 +61,8 @@ async def crear_empleado(
 ):
     """Crea un nuevo empleado en BioTime y sincroniza los terminales."""
     try:
+        if not datos.area:
+            datos.area = [settings.BIOTIME_DEFAULT_AREA_ID]
         empleado = await service.crear_empleado(datos=datos)
         await sincronizacion.sincronizar()
         return empleado

@@ -32,11 +32,6 @@ class ServicioSincronizacion(ISincronizacion):
             print("[Sync] AVISO - Sin terminales para sincronizar")
             return
 
-        sincronizados = sum(
-            1 for tid in terminal_ids
-            if await self._sincronizar_terminal(tid)  # type: ignore[misc]
-        )
-        # Usamos bucle normal para evitar async en comprehension
         sincronizados = 0
         for tid in terminal_ids:
             if await self._sincronizar_terminal(tid):

@@ -248,20 +248,20 @@ async def ejecutar_empcla(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 # Tabla de despacho: mapea cada instruccion de Preciso a su manejador correspondiente
 
 _MANEJADORES = {
-    "EMPMAR": ejecutar_empmar,
-    "EMPMAD": ejecutar_empmad,
-    "DISDAT": ejecutar_disdat,
-    "EMPHUE": ejecutar_emphue,
-    "DELHUE": ejecutar_delhue,
-    "COPHUE": ejecutar_cophue,
-    "REPHUE": ejecutar_rephue,
-    "EMPDAT": ejecutar_empdat,
-    "EMPDEL": ejecutar_empdel,
-    "EMPUDT": ejecutar_empudt,
-    "UPDTFH": ejecutar_updtfh,
-    "ASGPRV": ejecutar_asgprv,
-    "ADDADM": ejecutar_addadm,
-    "EMPCLA": ejecutar_empcla,
+    "EMPMAR": ejecutar_empmar,  # Lee marcaciones del terminal de las últimas 24h y las envía a Preciso
+    "EMPMAD": ejecutar_empmad,  # Igual que EMPMAR (el borrado en el terminal lo hace el daemon directamente)
+    "DISDAT": ejecutar_disdat,  # Lee datos técnicos del terminal (serie, firmware, MAC) y los guarda en Preciso
+    "EMPHUE": ejecutar_emphue,  # Lee templates biométricos de un empleado desde PostgreSQL de BioTime
+    "DELHUE": ejecutar_delhue,  # Elimina todos los templates biométricos de un empleado en BioTime
+    "COPHUE": ejecutar_cophue,  # Copia un template biométrico a un terminal específico vía BioTime
+    "REPHUE": ejecutar_rephue,  # Replica un template biométrico a un terminal (igual que COPHUE)
+    "EMPDAT": ejecutar_empdat,  # Crea o actualiza un empleado en BioTime
+    "EMPDEL": ejecutar_empdel,  # Elimina un empleado de BioTime
+    "EMPUDT": ejecutar_empudt,  # Actualiza los datos de un empleado en BioTime
+    "UPDTFH": ejecutar_updtfh,  # Sincroniza fecha/hora del terminal (BioTime lo maneja vía NTP, no requiere acción)
+    "ASGPRV": ejecutar_asgprv,  # Asigna/revoca privilegios de administrador en terminal (pendiente de implementar)
+    "ADDADM": ejecutar_addadm,  # Agrega un administrador en terminal (pendiente de implementar)
+    "EMPCLA": ejecutar_empcla,  # Verifica si un empleado tiene PIN configurado en el terminal (pendiente de implementar)
 }
 
 

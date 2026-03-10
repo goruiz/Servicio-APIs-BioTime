@@ -10,6 +10,7 @@ from app.clients.biotime_client import BioTimeClient
 from app.core.config import settings
 from app.db.conexion import obtener_pool
 from app.db.repositorios.repositorio_huellas import RepositorioHuellas
+from app.interfaces.areas.interface_areas import IAreas
 from app.interfaces.empleado.interface_empleado import IEmpleado
 from app.interfaces.huellas.interface_huellas import IHuellas
 from app.interfaces.marcaciones.interface_marcaciones import IMarcaciones
@@ -18,6 +19,7 @@ from app.interfaces.sincronizacion.interface_sincronizacion import (
     SincronizacionDeshabilitada,
 )
 from app.interfaces.terminales.interface_terminales import ITerminales
+from app.services.areas.servicio_areas import ServicioAreas
 from app.services.empleado.servicio_empleado import ServicioEmpleado
 from app.services.huellas.servicio_huellas import ServicioHuellas
 from app.services.marcaciones.servicio_marcaciones import ServicioMarcaciones
@@ -89,7 +91,15 @@ def obtener_servicio_terminales(
     return ServicioTerminales(client=client)
 
 
+def obtener_servicio_areas(
+    client: Annotated[BioTimeClient, Depends(get_biotime_client)]
+) -> IAreas:
+    """Provee una instancia del servicio de áreas."""
+    return ServicioAreas(client=client)
+
+
 # Type aliases para usar en los endpoints
+AreasDependencia = Annotated[IAreas, Depends(obtener_servicio_areas)]
 EmpleadoDependencia = Annotated[IEmpleado, Depends(obtener_servicio_empleados)]
 HuellasDependencia = Annotated[IHuellas, Depends(obtener_servicio_huellas)]
 MarcacionesDependencia = Annotated[IMarcaciones, Depends(obtener_servicio_marcaciones)]
