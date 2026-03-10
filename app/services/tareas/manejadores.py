@@ -23,11 +23,16 @@ import datetime
 from app.clients.biotime_client import BioTimeClient
 from app.core.config import settings
 from app.db.conexion import obtener_pool
+from app.interfaces.sincronizacion.interface_sincronizacion import (
+    ISincronizacion,
+    SincronizacionDeshabilitada,
+)
 from app.schemas.empleado.respuesta_empleado import EmpleadoCreateUpdateDto
 from app.schemas.tareas.tarea import CompletarTarea, TareaDto
 from app.services.empleado.servicio_empleado import ServicioEmpleado
 from app.services.huellas.servicio_biodata import ServicioBiodata
 from app.services.marcaciones.servicio_marcaciones import ServicioMarcaciones
+from app.services.sincronizacion.servicio_sincronizacion import ServicioSincronizacion
 from app.services.terminales.servicio_terminales import ServicioTerminales
 
 
@@ -52,6 +57,13 @@ def _servicio_marcaciones(client: BioTimeClient) -> ServicioMarcaciones:
 # Devuelve una instancia de ServicioBiodata para el cliente de la tarea actual
 def _servicio_biodata(client: BioTimeClient) -> ServicioBiodata:
     return ServicioBiodata(client, obtener_pool())
+
+
+# Devuelve ServicioSincronizacion o SincronizacionDeshabilitada según la configuración
+def _servicio_sincronizacion(client: BioTimeClient) -> ISincronizacion:
+    if settings.BIOTIME_SYNC_HABILITADO:
+        return ServicioSincronizacion(client)
+    return SincronizacionDeshabilitada()
 
 
 # Helpers
@@ -181,18 +193,11 @@ async def ejecutar_empdat(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
     service = _servicio_empleado(client)
     empleado = await service.buscar_por_emp_code(emp_code)
     
-    print(f"[Tareas] EMPDAT — emp_code={emp_code} datos={datos_entrantes} | encontrado en BioTime: {'sí' if empleado else 'no'}")
     if empleado:
-        print("Actualizar")
         await service.actualizar_empleado(empleado_id=empleado.id, datos=datos_entrantes)
-        print(f"[Tareas] EMPDAT — actualizado emp_code={emp_code} ID BioTime={empleado.id}")
     else:
-        print("Crear")
         await service.crear_empleado(datos=datos_entrantes)
-        print(f"datos:={datos_entrantes}")
-        print(f"área={datos_entrantes.area}")
-        print(f"emp_code={datos_entrantes.emp_code}")
-        print(f"[Tareas] EMPDAT — creado emp_code={emp_code}")
+    await _servicio_sincronizacion(client).sincronizar()
     return CompletarTarea(
         id_tarea=tarea.id_tarea,
         instruccion=tarea.instruccion,
@@ -200,14 +205,15 @@ async def ejecutar_empdat(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
     )
 
 
-# Elimina un empleado de BioTime buscandolo por emp_code. detalle: "emp_code"
+# Elimina un empleado de BioTime buscandolo por emp_code. detalle: "emp_code|nombre"
 async def ejecutar_empdel(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
-    emp_code = tarea.detalle
+    emp_code = tarea.detalle.split("|")[0]
     service = _servicio_empleado(client)
     empleado = await service.buscar_por_emp_code(emp_code)
     if empleado:
         await service.eliminar_empleados([empleado.id])
         print(f"[Tareas] EMPDEL — emp_code={emp_code} ID BioTime={empleado.id}")
+        await _servicio_sincronizacion(client).sincronizar()
     else:
         print(f"[Tareas] AVISO - EMPDEL emp_code={emp_code}: no encontrado en BioTime")
     return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
@@ -221,6 +227,7 @@ async def ejecutar_empudt(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
     if empleado:
         await service.actualizar_empleado(empleado_id=empleado.id, datos=datos)
         print(f"[Tareas] EMPUDT — actualizado emp_code={emp_code} ID BioTime={empleado.id}")
+        await _servicio_sincronizacion(client).sincronizar()
     else:
         print(f"[Tareas] AVISO - EMPUDT emp_code={emp_code}: no encontrado en BioTime")
     return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)

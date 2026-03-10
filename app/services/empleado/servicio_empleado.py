@@ -44,7 +44,6 @@ class ServicioEmpleado(IEmpleado):
         return EmployeeDto(**empleados[0])
 
     async def crear_empleado(self, datos: EmpleadoCreateUpdateDto) -> EmployeeDto:
-        print(f"[Empleado] Creando — emp_code={datos.emp_code}")
         if not datos.area:
             datos.area = [settings.BIOTIME_DEFAULT_AREA_ID]
         response_data = await self._client.post("personnel/api/employees/", json=datos.model_dump())
@@ -55,7 +54,6 @@ class ServicioEmpleado(IEmpleado):
             empleado = await self.buscar_por_emp_code(datos.emp_code)
             if not empleado:
                 raise ValueError(f"Empleado creado pero no encontrado en BioTime: emp_code={datos.emp_code}")
-        print(f"[Empleado] Creado — ID={empleado.id} emp_code={empleado.emp_code}")
         return empleado
 
     async def actualizar_empleado(self, empleado_id: int, datos: EmpleadoCreateUpdateDto) -> EmployeeDto:
