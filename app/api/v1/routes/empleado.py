@@ -57,13 +57,14 @@ async def obtener_empleado_por_id(
 async def crear_empleado(
     service: EmpleadoDependencia,
     sincronizacion: SincronizacionDependencia,
-    datos: EmpleadoCreateUpdateDto,
+    datosEntrantes: EmpleadoCreateUpdateDto,
 ):
     """Crea un nuevo empleado en BioTime y sincroniza los terminales."""
+    
+    
     try:
-        if not datos.area:
-            datos.area = [settings.BIOTIME_DEFAULT_AREA_ID]
-        empleado = await service.crear_empleado(datos=datos)
+
+        empleado = await service.crear_empleado(datos=datosEntrantes)
         await sincronizacion.sincronizar()
         return empleado
 

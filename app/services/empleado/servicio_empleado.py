@@ -5,6 +5,7 @@ Lógica de negocio para interactuar con el recurso de empleados de BioTime.
 from typing import Optional
 
 from app.clients.biotime_client import BioTimeClient
+from app.core.config import settings
 from app.interfaces.empleado.interface_empleado import IEmpleado
 from app.schemas.biotime.common import PaginatedResponse
 from app.schemas.empleado.respuesta_empleado import EmpleadoCreateUpdateDto, EmployeeDto
@@ -43,6 +44,9 @@ class ServicioEmpleado(IEmpleado):
         return EmployeeDto(**empleados[0])
 
     async def crear_empleado(self, datos: EmpleadoCreateUpdateDto) -> EmployeeDto:
+        print(f"[Empleado] Creando — emp_code={datos.emp_code}")
+        if not datos.area:
+            datos.area = [settings.BIOTIME_DEFAULT_AREA_ID]
         response_data = await self._client.post("personnel/api/employees/", json=datos.model_dump())
         # BioTime a veces no incluye id en la respuesta del POST; lo buscamos por emp_code
         if response_data.get("id"):

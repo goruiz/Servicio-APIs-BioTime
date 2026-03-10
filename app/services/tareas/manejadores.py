@@ -177,14 +177,21 @@ async def ejecutar_rephue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 
 # Crea o actualiza un empleado en BioTime segun si ya existe. detalle: "emp_code|nombre|admin|tarjeta"
 async def ejecutar_empdat(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
-    emp_code, datos = _parsear_datos_empleado(tarea.detalle, settings)
+    emp_code, datos_entrantes = _parsear_datos_empleado(tarea.detalle, settings)
     service = _servicio_empleado(client)
     empleado = await service.buscar_por_emp_code(emp_code)
+    
+    print(f"[Tareas] EMPDAT — emp_code={emp_code} datos={datos_entrantes} | encontrado en BioTime: {'sí' if empleado else 'no'}")
     if empleado:
-        await service.actualizar_empleado(empleado_id=empleado.id, datos=datos)
+        print("Actualizar")
+        await service.actualizar_empleado(empleado_id=empleado.id, datos=datos_entrantes)
         print(f"[Tareas] EMPDAT — actualizado emp_code={emp_code} ID BioTime={empleado.id}")
     else:
-        await service.crear_empleado(datos=datos)
+        print("Crear")
+        await service.crear_empleado(datos=datos_entrantes)
+        print(f"datos:={datos_entrantes}")
+        print(f"área={datos_entrantes.area}")
+        print(f"emp_code={datos_entrantes.emp_code}")
         print(f"[Tareas] EMPDAT — creado emp_code={emp_code}")
     return CompletarTarea(
         id_tarea=tarea.id_tarea,
