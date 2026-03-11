@@ -46,11 +46,54 @@ class RepositorioHuellas:
             )
         return total, [dict(fila) for fila in filas]
 
-    async def obtener_templates_por_empleado(self, employee_id: int) -> list[str]:
-        """Devuelve todos los bio_tmp no nulos de un empleado (sin paginación)."""
+    async def obtener_templates_por_empleado(self, employee_id: int) -> list[dict]:
+        """Devuelve los campos necesarios de templates no nulos de un empleado (sin paginación)."""
         async with self._pool.acquire() as conn:
             filas = await conn.fetch(
-                f"SELECT bio_tmp FROM {self._tabla} WHERE employee_id = $1 AND bio_tmp IS NOT NULL ORDER BY id",
+                f"SELECT bio_tmp, bio_index, valid FROM {self._tabla} WHERE employee_id = $1 AND bio_tmp IS NOT NULL ORDER BY id",
                 employee_id,
             )
-        return [str(fila["bio_tmp"]) for fila in filas]
+        return [dict(fila) for fila in filas]
+
+    async def obtener_templates_completos_por_empleado(self, employee_id: int) -> list[dict]:
+        """Devuelve todos los campos necesarios para copiar templates de un empleado."""
+        async with self._pool.acquire() as conn:
+            filas = await conn.fetch(
+                f"""SELECT employee_id, bio_index, bio_type, bio_no, bio_format,
+                           major_ver, minor_ver, valid, duress, bio_tmp
+                    FROM {self._tabla}
+                    WHERE employee_id = $1 AND bio_tmp IS NOT NULL
+                    ORDER BY bio_index, bio_no""",
+                employee_id,
+            )
+        return [dict(fila) for fila in filas]
+
+    async def insertar_o_actualizar_template(
+        self,
+        employee_id: int,
+        bio_index: int,
+        bio_type: int,
+        bio_no: int,
+        bio_format: int,
+        major_ver: int,
+        minor_ver: int,
+        valid: int,
+        duress: int,
+        bio_tmp: str,
+        sn: str,
+    ) -> None:
+        """Inserta un template en iclock_biodata con el sn del terminal destino.
+        Si ya existe un registro para ese empleado+dedo, actualiza bio_tmp, valid y sn
+        (el sn pasa a ser el del terminal destino, indicando a BioTime que lo sincronice ahí)."""
+        async with self._pool.acquire() as conn:
+            await conn.execute(
+                f"""INSERT INTO {self._tabla}
+                        (employee_id, bio_index, bio_type, bio_no, bio_format,
+                         major_ver, minor_ver, valid, duress, bio_tmp, sn,
+                         update_time, status)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), 0)
+                    ON CONFLICT (employee_id, bio_no, bio_index, bio_type, bio_format, major_ver, minor_ver, sn)
+                    DO UPDATE SET bio_tmp = EXCLUDED.bio_tmp, valid = EXCLUDED.valid, update_time = NOW()""",
+                employee_id, bio_index, bio_type, bio_no, bio_format,
+                major_ver, minor_ver, valid, duress, bio_tmp, sn,
+            )

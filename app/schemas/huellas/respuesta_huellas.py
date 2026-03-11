@@ -22,3 +22,25 @@ class HuellaDto(BaseDto):
     duress: int = Field(..., description="Flag de coacción")
     bio_tmp: Optional[str] = Field(None, description="Template biométrico (base64)")
     sn: Optional[str] = Field(None, description="Número de serie del terminal de origen")
+
+
+class CopiarHuellaRequest(BaseDto):
+    """Cuerpo de la petición para copiar huellas de un empleado a uno o varios terminales."""
+
+    emp_code: str = Field(..., description="Código del empleado en BioTime")
+    terminal_ips: list[str] = Field(..., min_length=1, description="IPs de los terminales destino")
+
+
+class ResultadoTerminal(BaseDto):
+    """Resultado de la copia a un terminal específico."""
+
+    terminal_ip: str = Field(..., description="IP del terminal")
+    terminal_sn: str = Field(..., description="Número de serie del terminal")
+    templates_registrados: int = Field(..., description="Cantidad de templates enviados")
+
+
+class CopiarHuellaResponse(BaseDto):
+    """Resultado de la operación de copia de huellas a uno o varios terminales."""
+
+    emp_code: str = Field(..., description="Código del empleado")
+    terminales: list[ResultadoTerminal] = Field(..., description="Resultado por cada terminal")

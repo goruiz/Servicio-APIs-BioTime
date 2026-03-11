@@ -19,6 +19,7 @@ Instrucciones y servicio que utilizan:
   UPDTFH / ASGPRV / ADDADM / EMPCLA : sin implementacion via REST
 """
 import datetime
+import json
 
 from app.clients.biotime_client import BioTimeClient
 from app.core.config import settings
@@ -136,8 +137,12 @@ async def ejecutar_emphue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
     emp_code = tarea.detalle
     print(f"[EMPHUE] emp_code={emp_code}")
     templates = await _servicio_biodata(client).obtener_templates_por_emp_code(emp_code)
-    respuesta = "&".join(templates) if templates else "0"
-    print(f"[Tareas] EMPHUE — emp_code={emp_code} huellas={len(templates)}")
+    if templates:
+        respuesta = "&".join(json.dumps(t, separators=(",", ":")) for t in templates)
+        print(f"[EMPHUE] {len(templates)} template(s) — fids={[t['fid'] for t in templates]}")
+    else:
+        respuesta = "0"
+        print(f"[EMPHUE] Sin templates para emp_code={emp_code}")
     return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion, respuesta=respuesta)
 
 

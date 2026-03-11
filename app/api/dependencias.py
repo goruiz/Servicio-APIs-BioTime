@@ -21,6 +21,7 @@ from app.interfaces.sincronizacion.interface_sincronizacion import (
 from app.interfaces.terminales.interface_terminales import ITerminales
 from app.services.areas.servicio_areas import ServicioAreas
 from app.services.empleado.servicio_empleado import ServicioEmpleado
+from app.services.huellas.servicio_biodata import ServicioBiodata
 from app.services.huellas.servicio_huellas import ServicioHuellas
 from app.services.marcaciones.servicio_marcaciones import ServicioMarcaciones
 from app.services.sincronizacion.servicio_sincronizacion import ServicioSincronizacion
@@ -71,6 +72,12 @@ def obtener_servicio_huellas() -> IHuellas:
     return ServicioHuellas(repositorio=repositorio)
 
 
+def obtener_servicio_biodata(
+    client: Annotated[BioTimeClient, Depends(get_biotime_client)]
+) -> ServicioBiodata:
+    return ServicioBiodata(client=client, pool=obtener_pool())
+
+
 def obtener_servicio_sincronizacion(
     client: Annotated[BioTimeClient, Depends(get_biotime_client)]
 ) -> ISincronizacion:
@@ -100,6 +107,7 @@ def obtener_servicio_areas(
 
 # Type aliases para usar en los endpoints
 AreasDependencia = Annotated[IAreas, Depends(obtener_servicio_areas)]
+BiodataDependencia = Annotated[ServicioBiodata, Depends(obtener_servicio_biodata)]
 EmpleadoDependencia = Annotated[IEmpleado, Depends(obtener_servicio_empleados)]
 HuellasDependencia = Annotated[IHuellas, Depends(obtener_servicio_huellas)]
 MarcacionesDependencia = Annotated[IMarcaciones, Depends(obtener_servicio_marcaciones)]

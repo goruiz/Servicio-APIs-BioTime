@@ -51,6 +51,30 @@ async def obtener_terminal_por_sn(
         raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})
 
 
+@router.get("/por-ip", response_model=TerminalDto)
+async def obtener_terminal_por_ip(
+    service: TerminalesDependencia,
+    ip: str = Query(..., description="Dirección IP del terminal"),
+):
+    """Obtiene un terminal por su dirección IP."""
+    try:
+        terminal = await service.buscar_por_ip(ip=ip)
+        if not terminal:
+            raise HTTPException(status_code=404, detail={"error": f"No se encontró ningún terminal con IP={ip}"})
+        return terminal
+
+    except HTTPException:
+        raise
+
+    except BioTimeException as e:
+        print(f"[Terminal] ERROR - GET /terminales/por-ip IP={ip}: {e.message} (HTTP {e.status_code})")
+        raise HTTPException(status_code=e.status_code, detail={"error": e.message, "status_code": e.status_code})
+
+    except Exception as e:
+        print(f"[Terminal] ERROR - GET /terminales/por-ip IP={ip}: {e}")
+        raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})
+
+
 @router.get("/{terminal_id}", response_model=TerminalDto)
 async def obtener_terminal_por_id(
     service: TerminalesDependencia,

@@ -58,6 +58,9 @@ class ServicioSincronizacion(ISincronizacion):
                 break
         return ids
 
+    async def sincronizar_terminal(self, terminal_id: int) -> bool:
+        return await self._sincronizar_terminal(terminal_id)
+
     async def _sincronizar_terminal(self, terminal_id: int) -> bool:
         """
         Intenta sincronizar un terminal probando los endpoints en orden.

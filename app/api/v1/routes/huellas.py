@@ -3,11 +3,11 @@ Endpoints de huellas dactilares.
 """
 from typing import List
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, status
 
-from app.api.dependencias import HuellasDependencia
+from app.api.dependencias import BiodataDependencia, HuellasDependencia
 from app.core.exceptions import BioTimeException
-from app.schemas.huellas.respuesta_huellas import HuellaDto
+from app.schemas.huellas.respuesta_huellas import CopiarHuellaRequest, CopiarHuellaResponse, HuellaDto
 from app.utils.routing import ConfigurableAliasRoute
 
 router = APIRouter(prefix="/huellas", tags=["Huellas"], route_class=ConfigurableAliasRoute)
@@ -53,4 +53,36 @@ async def obtener_huellas_por_empleado(
 
     except Exception as e:
         print(f"[Huellas] ERROR - GET /huellas/por-empleado ID={empleado_id}: {e}")
+        raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})
+
+
+@router.post("/copiar-a-terminal", response_model=CopiarHuellaResponse, status_code=status.HTTP_200_OK)
+async def copiar_huellas_a_terminal(
+    body: CopiarHuellaRequest,
+    service: BiodataDependencia,
+):
+    """
+    Copia los templates biométricos de un empleado a un terminal específico.
+    Equivale a ejecutar EMPHUE + COPHUE en un solo paso: obtiene las huellas
+    desde PostgreSQL de BioTime y las registra en el terminal indicado por IP.
+    """
+    try:
+        resultados = await service.copiar_a_terminales(
+            emp_code=body.emp_code,
+            terminal_ips=body.terminal_ips,
+        )
+        return CopiarHuellaResponse(
+            emp_code=body.emp_code,
+            terminales=resultados,
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail={"error": str(e)})
+
+    except BioTimeException as e:
+        print(f"[Huellas] ERROR - POST /huellas/copiar-a-terminal: {e.message} (HTTP {e.status_code})")
+        raise HTTPException(status_code=e.status_code, detail={"error": e.message, "status_code": e.status_code})
+
+    except Exception as e:
+        print(f"[Huellas] ERROR - POST /huellas/copiar-a-terminal: {e}")
         raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})
