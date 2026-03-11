@@ -2,6 +2,8 @@
 Servicio principal de procesamiento de tareas de Preciso.
 Se registra en el scheduler para ejecutarse periódicamente.
 """
+from datetime import datetime
+
 from app.clients.biotime_client import BioTimeClient
 from app.clients.preciso_client import PrecisoAuthenticationError, PrecisoClient, PrecisoConnectionError
 from app.core.config import settings
@@ -11,6 +13,8 @@ from app.services.tareas.interface_tareas import ITareas
 
 _preciso_client = PrecisoClient()
 _biotime_client = BioTimeClient()
+
+_SEP_WIDTH = 60
 
 
 class ServicioTareas(ITareas):
@@ -30,7 +34,9 @@ class ServicioTareas(ITareas):
         2. Ejecuta cada tarea contra BioTime
         3. Reporta el resultado a Preciso
         """
-        print(f"[Tareas] -- Ciclo iniciado")
+        now = datetime.now().strftime("%H:%M:%S")
+        print(f"\n[Tareas] {'─' * _SEP_WIDTH}")
+        print(f"[Tareas] Ciclo: {now}")
         try:
             tareas = await self._preciso.obtener_tareas()
         except (PrecisoAuthenticationError, PrecisoConnectionError) as e:
@@ -41,17 +47,23 @@ class ServicioTareas(ITareas):
             print(f"[Tareas] Sin tareas pendientes")
             return
 
-        print(f"[Tareas] {len(tareas)} tarea(s) pendiente(s)")
-        for tarea in tareas:
-            print(
-                f"[Tareas] Procesando ID={tarea.id_tarea} | instruccion={tarea.instruccion}"
-                f" | ip={tarea.ip} | id_tabla={tarea.id_tabla} | detalle={tarea.detalle!r}"
-            )
+        total = len(tareas)
+        print(f"\n[Tareas] {total} tarea(s) pendiente(s):")
+        for i, t in enumerate(tareas, 1):
+            print(f"  [{i}]  ID={t.id_tarea:<8}  {t.instruccion:<8}  IP={t.ip:<16}  {t.detalle!r}")
+
+        for i, tarea in enumerate(tareas, 1):
+            header = f"[Tareas] ── [{i}/{total}] {tarea.instruccion} #{tarea.id_tarea} "
+            print(f"\n{header}{'─' * max(0, _SEP_WIDTH - len(header))}")
             try:
                 payload = await manejadores.ejecutar(tarea, self._biotime)
-                print(f"[Tareas] Payload generado: {payload.model_dump()}")
                 respuesta = await self._preciso.completar_tarea(payload)
-                print(f"[Tareas] completar_tarea respondio: {respuesta}")
+                error_code = respuesta.get("error_code") if respuesta else None
+                if error_code:
+                    detalle = respuesta.get("detalle", "sin detalle")
+                    print(f"[Tareas] Completado | Preciso: {detalle}")
+                else:
+                    print(f"[Tareas] Completado | Preciso: OK")
             except (PrecisoAuthenticationError, PrecisoConnectionError) as e:
                 print(f"[Tareas] ERROR - No se pudo completar tarea ID={tarea.id_tarea}: {e}")
             except Exception as e:

@@ -69,14 +69,6 @@ def _servicio_sincronizacion(client: BioTimeClient) -> ISincronizacion:
 # Helpers
 
 
-# Imprime en consola el resultado final de una tarea: exito o error con su mensaje
-def _log_resultado(tarea: TareaDto, ok: bool, error: Exception = None) -> None:
-    if ok:
-        print(f"[Tareas] OK  - ID={tarea.id_tarea} {tarea.instruccion} completado")
-    else:
-        print(f"[Tareas] ERR - ID={tarea.id_tarea} {tarea.instruccion} fallido: {error}")
-
-
 # Parsea el detalle de una tarea de empleado y construye el DTO con los datos de configuracion por defecto
 def _parsear_datos_empleado(detalle: str, settings_) -> tuple[str, EmpleadoCreateUpdateDto]:
     partes = detalle.split("|")
@@ -100,6 +92,7 @@ def _parsear_datos_empleado(detalle: str, settings_) -> tuple[str, EmpleadoCreat
 
 # Lee las marcaciones del terminal de las ultimas 24h y las envia a Preciso
 async def ejecutar_empmar(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
+    print(f"[EMPMAR] IP={tarea.ip} | emp_code={tarea.detalle}")
     terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
     if not terminal:
         return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
@@ -141,6 +134,7 @@ async def ejecutar_disdat(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 # Obtiene los templates biometricos de un empleado desde BioTime
 async def ejecutar_emphue(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
     emp_code = tarea.detalle
+    print(f"[EMPHUE] emp_code={emp_code}")
     templates = await _servicio_biodata(client).obtener_templates_por_emp_code(emp_code)
     respuesta = "&".join(templates) if templates else "0"
     print(f"[Tareas] EMPHUE — emp_code={emp_code} huellas={len(templates)}")
@@ -150,6 +144,7 @@ async def ejecutar_emphue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 # Elimina todos los templates biometricos de un empleado en BioTime
 async def ejecutar_delhue(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
     emp_code = tarea.detalle
+    print(f"[DELHUE] emp_code={emp_code}")
     await _servicio_biodata(client).eliminar_por_emp_code(emp_code)
     return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
@@ -157,6 +152,7 @@ async def ejecutar_delhue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 # Copia un template biometrico al terminal indicado. detalle: "emp_code|bio_data"
 async def ejecutar_cophue(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
     emp_code, bio_data = tarea.detalle.split("|", 1)
+    print(f"[COPHUE] emp_code={emp_code} | IP={tarea.ip} | template={'presente' if bio_data and bio_data != '0' else 'vacío'}")
     if bio_data and bio_data != "0":
         try:
             terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
@@ -172,6 +168,7 @@ async def ejecutar_cophue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 # Replica un template biometrico al terminal indicado. detalle: "emp_code|bio_data"
 async def ejecutar_rephue(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
     emp_code, bio_data = tarea.detalle.split("|", 1)
+    print(f"[REPHUE] emp_code={emp_code} | IP={tarea.ip} | template={'presente' if bio_data and bio_data != '0' else 'vacío'}")
     if bio_data and bio_data != "0":
         try:
             terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
@@ -190,6 +187,7 @@ async def ejecutar_rephue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 # Crea o actualiza un empleado en BioTime segun si ya existe. detalle: "emp_code|nombre|admin|tarjeta"
 async def ejecutar_empdat(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
     emp_code, datos_entrantes = _parsear_datos_empleado(tarea.detalle, settings)
+    print(f"[EMPDAT] emp_code={emp_code} | nombre={datos_entrantes.first_name} {datos_entrantes.last_name} | depto={datos_entrantes.department} | area={datos_entrantes.area}")
     service = _servicio_empleado(client)
     empleado = await service.buscar_por_emp_code(emp_code)
     
@@ -208,6 +206,7 @@ async def ejecutar_empdat(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 # Elimina un empleado de BioTime buscandolo por emp_code. detalle: "emp_code|nombre"
 async def ejecutar_empdel(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
     emp_code = tarea.detalle.split("|")[0]
+    print(f"[EMPDEL] emp_code={emp_code}")
     service = _servicio_empleado(client)
     empleado = await service.buscar_por_emp_code(emp_code)
     if empleado:
@@ -222,6 +221,7 @@ async def ejecutar_empdel(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 # Actualiza los datos de un empleado en BioTime. detalle: "emp_code|nombre|admin|tarjeta"
 async def ejecutar_empudt(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
     emp_code, datos = _parsear_datos_empleado(tarea.detalle, settings)
+    print(f"[EMPUDT] emp_code={emp_code} | nombre={datos.first_name} {datos.last_name}")
     service = _servicio_empleado(client)
     empleado = await service.buscar_por_emp_code(emp_code)
     if empleado:
@@ -279,18 +279,11 @@ _MANEJADORES = {
 }
 
 
-# Despacha la tarea al manejador y registra el resultado de exito o error
+# Despacha la tarea al manejador correspondiente
 async def ejecutar(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
     manejador = _MANEJADORES.get(tarea.instruccion)
     if not manejador:
         print(f"[Tareas] AVISO - Instruccion desconocida: {tarea.instruccion} (ID={tarea.id_tarea})")
         return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
-    print(f"[Tareas] Ejecutando ID={tarea.id_tarea} {tarea.instruccion} — IP={tarea.ip} | detalle={tarea.detalle!r}")
-    try:
-        resultado = await manejador(tarea, client)
-        _log_resultado(tarea, ok=True)
-        return resultado
-    except Exception as e:
-        _log_resultado(tarea, ok=False, error=e)
-        raise
+    return await manejador(tarea, client)

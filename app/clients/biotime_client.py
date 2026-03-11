@@ -80,6 +80,12 @@ class BioTimeClient:
                 headers=headers,
                 timeout=self._timeout,
             ) as client:
+                log = f"[BioTime] -> {method} {endpoint}"
+                if params:
+                    log += f" | params={params}"
+                if json:
+                    log += f" | body={str(json)[:300]}"
+                print(log)
                 response = await client.request(
                     method, endpoint, params=params, json=json
                 )
@@ -114,6 +120,12 @@ class BioTimeClient:
                 try:
                     return response.json()
                 except Exception:
+                    content_type = response.headers.get("content-type", "")
+                    if "html" in content_type or text.lstrip().startswith("<"):
+                        print(f"[BioTime] ERROR - Respuesta HTML (no JSON) en {method} {endpoint} — posible endpoint inexistente")
+                        raise BioTimeConnectionError(
+                            f"Respuesta HTML inesperada de BioTime en {method} {endpoint}"
+                        )
                     print(f"[BioTime] ERROR - Respuesta no-JSON en {method} {endpoint}: {text[:200]}")
                     raise BioTimeConnectionError(
                         f"Respuesta inesperada de BioTime (no es JSON): {text[:200]}"
