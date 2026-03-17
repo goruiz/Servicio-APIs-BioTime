@@ -34,6 +34,8 @@ class EmpleadoCreateUpdateDto(BaseDto):
     position: Optional[int] = Field(None, description="ID del cargo/posición en BioTime")
     area: List[int] = Field(default_factory=list, description="Lista de IDs de áreas (puede ser vacía)")
     hire_date: Optional[str] = Field(None, description="Fecha de contratación (YYYY-MM-DD)")
+    card_no: Optional[str] = Field(None, description="Número de tarjeta del empleado")
+    device_password: Optional[str] = Field(None, description="Contraseña del empleado en el terminal")
 
     model_config = ConfigDict(
         json_schema_extra={

@@ -122,7 +122,8 @@ class BioTimeClient:
                 except Exception:
                     content_type = response.headers.get("content-type", "")
                     if "html" in content_type or text.lstrip().startswith("<"):
-                        print(f"[BioTime] ERROR - Respuesta HTML (no JSON) en {method} {endpoint} — posible endpoint inexistente")
+                        print(f"[BioTime] ERROR - Respuesta HTML (no JSON) en {method} {endpoint} — HTTP {response.status_code}")
+                        print(f"[BioTime] Contenido HTML: {text[:500]}")
                         raise BioTimeConnectionError(
                             f"Respuesta HTML inesperada de BioTime en {method} {endpoint}"
                         )

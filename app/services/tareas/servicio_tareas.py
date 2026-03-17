@@ -9,7 +9,7 @@ from app.clients.preciso_client import PrecisoAuthenticationError, PrecisoClient
 from app.core.config import settings
 from app.core.scheduler import scheduler
 from app.services.tareas import manejadores
-from app.services.tareas.interface_tareas import ITareas
+from app.services.tareas.interface_tareas import ITareas, TareaPendiente
 
 _preciso_client = PrecisoClient()
 _biotime_client = BioTimeClient()
@@ -64,6 +64,8 @@ class ServicioTareas(ITareas):
                     print(f"[Tareas] Completado | Preciso: {detalle}")
                 else:
                     print(f"[Tareas] Completado | Preciso: OK")
+            except TareaPendiente as e:
+                print(f"[Tareas] PENDIENTE - {e}")
             except (PrecisoAuthenticationError, PrecisoConnectionError) as e:
                 print(f"[Tareas] ERROR - No se pudo completar tarea ID={tarea.id_tarea}: {e}")
             except Exception as e:

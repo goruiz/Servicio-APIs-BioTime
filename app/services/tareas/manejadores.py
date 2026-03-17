@@ -30,10 +30,12 @@ from app.interfaces.sincronizacion.interface_sincronizacion import (
 )
 from app.schemas.empleado.respuesta_empleado import EmpleadoCreateUpdateDto
 from app.schemas.tareas.tarea import CompletarTarea, TareaDto
+from app.db.repositorios.repositorio_empleado import RepositorioEmpleado
 from app.services.empleado.servicio_empleado import ServicioEmpleado
 from app.services.huellas.servicio_biodata import ServicioBiodata
 from app.services.marcaciones.servicio_marcaciones import ServicioMarcaciones
 from app.services.sincronizacion.servicio_sincronizacion import ServicioSincronizacion
+from app.services.tareas.interface_tareas import TareaPendiente
 from app.services.terminales.servicio_terminales import ServicioTerminales
 
 
@@ -42,7 +44,7 @@ from app.services.terminales.servicio_terminales import ServicioTerminales
 
 # Devuelve una instancia de ServicioEmpleado para el cliente de la tarea actual
 def _servicio_empleado(client: BioTimeClient) -> ServicioEmpleado:
-    return ServicioEmpleado(client)
+    return ServicioEmpleado(client, RepositorioEmpleado(obtener_pool()))
 
 
 # Devuelve una instancia de ServicioTerminales para el cliente de la tarea actual
@@ -78,12 +80,16 @@ def _parsear_datos_empleado(detalle: str, settings_) -> tuple[str, EmpleadoCreat
     nombre_partes = nombre_completo.strip().split(" ", 1)
     first_name = nombre_partes[0]
     last_name = nombre_partes[1] if len(nombre_partes) > 1 else ""
+    card_no = partes[3] if len(partes) > 3 and partes[3].strip() else None
+    device_password = partes[4] if len(partes) > 4 and partes[4].strip() else None
     datos = EmpleadoCreateUpdateDto(
         emp_code=emp_code,
         first_name=first_name,
         last_name=last_name,
         department=settings_.BIOTIME_DEFAULT_DEPARTMENT_ID,
         area=[settings_.BIOTIME_DEFAULT_AREA_ID],
+        card_no=card_no,
+        device_password=device_password,
     )
     return emp_code, datos
 
@@ -93,17 +99,25 @@ def _parsear_datos_empleado(detalle: str, settings_) -> tuple[str, EmpleadoCreat
 
 # Lee las marcaciones del terminal de las ultimas 24h y las envia a Preciso
 async def ejecutar_empmar(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
-    print(f"[EMPMAR] IP={tarea.ip} | emp_code={tarea.detalle}")
+    print(f"[EMPMAR] Inicio — IP={tarea.ip} | emp_code={tarea.detalle}")
+
+    print(f"[EMPMAR] Buscando terminal por IP={tarea.ip} en BioTime...")
     terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
     if not terminal:
+        print(f"[EMPMAR] Terminal no encontrado para IP={tarea.ip} — cerrando tarea sin marcaciones")
         return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
+    print(f"[EMPMAR] Terminal encontrado — SN={terminal.sn} | ID={terminal.id}")
 
     fecha_inicio = (datetime.datetime.now() - datetime.timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[EMPMAR] Consultando marcaciones desde {fecha_inicio} para SN={terminal.sn}...")
     marcaciones = await _servicio_marcaciones(client).obtener_marcaciones_por_terminal(terminal.sn, fecha_inicio)
+    print(f"[EMPMAR] {len(marcaciones)} marcación(es) obtenida(s)")
 
     partes = [f"{m.emp_code}|{m.punch_time}" for m in marcaciones]
+    for i, p in enumerate(partes, 1):
+        print(f"[EMPMAR]   [{i}] {p}")
     respuesta = "&".join(partes) if partes else "0"
-    print(f"[Tareas] EMPMAR — IP={tarea.ip} marcaciones={len(marcaciones)}")
+    print(f"[EMPMAR] Respuesta final: {respuesta}")
     return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion, respuesta=respuesta)
 
 
@@ -156,17 +170,18 @@ async def ejecutar_delhue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 
 # Copia un template biometrico al terminal indicado. detalle: "emp_code|bio_data"
 async def ejecutar_cophue(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
-    emp_code, bio_data = tarea.detalle.split("|", 1)
-    print(f"[COPHUE] emp_code={emp_code} | IP={tarea.ip} | template={'presente' if bio_data and bio_data != '0' else 'vacío'}")
-    if bio_data and bio_data != "0":
-        try:
-            terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
-            sn = terminal.sn if terminal else ""
-            await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
-        except Exception as e:
-            print(f"[Tareas] AVISO - COPHUE no pudo registrar template en BioTime: {e}")
-    else:
-        print(f"[Tareas] COPHUE — emp_code={emp_code} sin template válido, cerrando tarea")
+    partes = tarea.detalle.split("|", 1)
+    emp_code = partes[0]
+    bio_data = partes[1] if len(partes) > 1 else ""
+    if not bio_data or bio_data == "0":
+        raise TareaPendiente(f"COPHUE emp_code={emp_code} — sin huella, tarea queda pendiente")
+    print(f"[COPHUE] emp_code={emp_code} | IP={tarea.ip} | template=presente")
+    try:
+        terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
+        sn = terminal.sn if terminal else ""
+        await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
+    except Exception as e:
+        print(f"[Tareas] AVISO - COPHUE no pudo registrar template en BioTime: {e}")
     return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
