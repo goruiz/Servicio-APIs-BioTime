@@ -21,6 +21,13 @@ else:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Mostrar entorno al iniciar
+    print(
+        f"[App] Entorno: {settings.ENVIRONMENT} | "
+        f"Debug: {settings.DEBUG} | "
+        f"Host: {settings.HOST}:{settings.PORT}"
+    )
+
     await iniciar_pool()
 
     if settings.TAREAS_HABILITADO:
