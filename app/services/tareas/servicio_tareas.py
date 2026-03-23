@@ -5,7 +5,11 @@ Se registra en el scheduler para ejecutarse periódicamente.
 from datetime import datetime
 
 from app.clients.biotime_client import BioTimeClient
-from app.clients.preciso_client import PrecisoAuthenticationError, PrecisoClient, PrecisoConnectionError
+from app.clients.preciso_client import (
+    PrecisoAuthenticationError,
+    PrecisoClient,
+    PrecisoConnectionError,
+)
 from app.core.config import settings
 from app.core.scheduler import scheduler
 from app.services.tareas import manejadores
@@ -14,7 +18,7 @@ from app.services.tareas.interface_tareas import ITareas, TareaPendiente
 _preciso_client = PrecisoClient()
 _biotime_client = BioTimeClient()
 
-_SEP_WIDTH = 60
+TAMANO_SEPARADOR = 25
 
 
 def _filtrar_tareas_por_ip(tareas):
@@ -26,10 +30,13 @@ def _filtrar_tareas_por_ip(tareas):
     """
     ips_permitir = set(settings.TAREAS_IPS_PERMITIR)
     ips_ignorar = set(settings.TAREAS_IPS_IGNORAR)
+
     if ips_permitir:
         tareas = [t for t in tareas if t.ip in ips_permitir]
+
     if ips_ignorar:
         tareas = [t for t in tareas if t.ip not in ips_ignorar]
+
     return tareas
 
 
@@ -39,7 +46,11 @@ class ServicioTareas(ITareas):
     Orquesta el ciclo: obtener → ejecutar → completar.
     """
 
-    def __init__(self, preciso_client: PrecisoClient, biotime_client: BioTimeClient) -> None:
+    def __init__(
+        self,
+        preciso_client: PrecisoClient,
+        biotime_client: BioTimeClient,
+    ) -> None:
         self._preciso = preciso_client
         self._biotime = biotime_client
 
@@ -51,8 +62,9 @@ class ServicioTareas(ITareas):
         3. Reporta el resultado a Preciso
         """
         now = datetime.now().strftime("%H:%M:%S")
-        print(f"\n[Tareas] {'─' * _SEP_WIDTH}")
-        print(f"[Tareas] Ciclo: {now}")
+
+        print(f"\n{'─' * TAMANO_SEPARADOR}[Tareas] {'─' * TAMANO_SEPARADOR}")
+
         try:
             tareas = await self._preciso.obtener_tareas()
         except (PrecisoAuthenticationError, PrecisoConnectionError) as e:
@@ -71,28 +83,60 @@ class ServicioTareas(ITareas):
 
         total = len(tareas)
         print(f"\n[Tareas] {total} tarea(s) pendiente(s):")
+
+
         for i, t in enumerate(tareas, 1):
-            print(f"  [{i}]  ID={t.id_tarea:<8}  {t.instruccion:<8}  IP={t.ip:<16}  {t.detalle!r}")
+            print(
+                f"  [{i}]  ID={t.id_tarea:<8}  {t.instruccion:<8}  "
+                f"IP={t.ip:<16}  {t.detalle!r}"
+            )
+
+        if settings.UNICAMENTE_LEER_TAREAS:
+            print("[Tareas] Modo solo lectura — tareas no ejecutadas (UNICAMENTE_LEER_TAREAS=True)")
+            return
 
         for i, tarea in enumerate(tareas, 1):
-            header = f"[Tareas] ── [{i}/{total}] {tarea.instruccion} #{tarea.id_tarea} "
-            print(f"\n{header}{'─' * max(0, _SEP_WIDTH - len(header))}")
+            header = (
+                f"[Tareas] ── [{i}/{total}] "
+                f"{tarea.instruccion} #{tarea.id_tarea} "
+            )
+
+            print(
+                f"\n{header}"
+                f"{'─' * max(0, TAMANO_SEPARADOR - len(header))}"
+            )
+
             try:
-                payload = await manejadores.ejecutar(tarea, self._biotime)
+                payload = await manejadores.ejecutar(
+                    tarea,
+                    self._biotime,
+                )
+
                 respuesta = await self._preciso.completar_tarea(payload)
-                error_code = respuesta.get("error_code") if respuesta else None
+                error_code = (
+                    respuesta.get("zerror_code") if respuesta else None
+                )
+
                 if error_code:
                     detalle = respuesta.get("detalle", "sin detalle")
                     print(f"[Tareas] Completado | Preciso: {detalle}")
                 else:
                     print(f"[Tareas] Completado | Preciso: OK")
+
             except TareaPendiente as e:
                 print(f"[Tareas] PENDIENTE - {e}")
-            except (PrecisoAuthenticationError, PrecisoConnectionError) as e:
-                print(f"[Tareas] ERROR - No se pudo completar tarea ID={tarea.id_tarea}: {e}")
-            except Exception as e:
-                print(f"[Tareas] ERROR - Tarea ID={tarea.id_tarea} ({tarea.instruccion}): {e}")
 
+            except (PrecisoAuthenticationError, PrecisoConnectionError) as e:
+                print(
+                    f"[Tareas] ERROR - No se pudo completar tarea "
+                    f"ID={tarea.id_tarea}: {e}"
+                )
+
+            except Exception as e:
+                print(
+                    f"[Tareas] ERROR - Tarea ID={tarea.id_tarea} "
+                    f"({tarea.instruccion}): {e}"
+                )
 
 # ------------------------------------------------------------------
 # Registro en el scheduler global
@@ -101,11 +145,18 @@ class ServicioTareas(ITareas):
 _servicio = ServicioTareas(_preciso_client, _biotime_client)
 
 if settings.TAREAS_IPS_PERMITIR:
-    print(f"[Tareas] Filtro IPs permitidas: {', '.join(settings.TAREAS_IPS_PERMITIR)}")
+    print(
+        f"[Tareas] Filtro IPs permitidas: "
+        f"{', '.join(settings.TAREAS_IPS_PERMITIR)}"
+    )
 else:
     print(f"[Tareas] No existen IPs para filtro de permitidas")
+
 if settings.TAREAS_IPS_IGNORAR:
-    print(f"[Tareas] Filtro IPs ignoradas:  {', '.join(settings.TAREAS_IPS_IGNORAR)}")
+    print(
+        f"[Tareas] Filtro IPs ignoradas:  "
+        f"{', '.join(settings.TAREAS_IPS_IGNORAR)}"
+    )
 else:
     print(f"[Tareas] No existen IPs para filtro de ignoradas")
 
@@ -114,6 +165,6 @@ else:
     nombre="polling_tareas_preciso",
     intervalo_segundos=settings.TAREAS_INTERVALO_SEGUNDOS,
 )
-async def _tarea_polling() -> None:
+async def _procesar_cola_de_tareas() -> None:
     """Función registrada en el scheduler. Se ejecuta cada TAREAS_INTERVALO_SEGUNDOS."""
     await _servicio.procesar_tareas()

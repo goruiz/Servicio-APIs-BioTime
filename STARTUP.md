@@ -78,7 +78,7 @@ python -m app.main
 │                       └─ scheduler._tareas.append({
 │                              nombre:    "polling_tareas_preciso",
 │                              intervalo: 60,
-│                              funcion:   _tarea_polling   ← referencia a la función
+│                              funcion:   _procesar_cola_de_tareas   ← referencia a la función
 │                          })
 │                          scheduler._tareas ahora tiene 1 elemento
 │                          El loop NO ha empezado todavía
@@ -114,7 +114,7 @@ uvicorn arranca el event loop de asyncio
 │
 └─ lifespan(app)  →  ejecuta hasta el yield
         │
-        ├─ await iniciar_pool()
+        ├─ await iniciar_conexion_bd()
         │       ├─ logger.info("Iniciando pool de conexiones a PostgreSQL")
         │       ├─ asyncpg.create_pool(host, port, database, user, password,
         │       │                      min_size=2, max_size=10)
@@ -154,7 +154,7 @@ _loop_periodico(tarea="polling_tareas_preciso")
 │
 └─ while True:  ←  loop infinito
         │
-        ├─ await _tarea_polling()
+        ├─ await _procesar_cola_de_tareas()
         │       └─ await _servicio.procesar_tareas()
         │               │
         │               ├─ logger.info("Consultando tareas en Preciso...")
@@ -245,7 +245,7 @@ t = ~123s loop despierta → GET tareas → ...
 | Error | Momento | Consecuencia |
 |---|---|---|
 | Variable de entorno faltante (`BIOTIME_BASE_URL`, etc.) | Fase 1 — `Settings()` | El proceso termina inmediatamente con `ValidationError` |
-| PostgreSQL no disponible | Fase 2 — `iniciar_pool()` | El proceso termina, el servidor no arranca |
+| PostgreSQL no disponible | Fase 2 — `iniciar_conexion_bd()` | El proceso termina, el servidor no arranca |
 | Preciso no disponible | Fase 3 — primer ciclo | Se loguea el error, el loop sigue intentando cada 60 segundos |
 | BioTime no disponible | Fase 3 — al ejecutar una tarea | Se loguea el error para esa tarea, las demás siguen procesándose |
 | Token expirado (Preciso o BioTime) | Fase 3 — cualquier petición | Se renueva automáticamente con un re-login y se reintenta |

@@ -36,6 +36,76 @@ mypy app/
 
 Configuración de pytest, black, isort y mypy está en `pyproject.toml`.
 
+## Flujo de arranque (desde `app/main.py`)
+
+### 1. Carga de configuración (module-level, antes de todo)
+- `app/core/config.py` — `Settings` (pydantic-settings) carga `.env` y luego `.env.{ENVIRONMENT}` como override. La instancia `settings` queda disponible como singleton global.
+- Si `TAREAS_HABILITADO=True`: se importa `app/services/tareas/servicio_tareas.py`, lo que a su vez:
+  - Crea instancias singleton de `PrecisoClient` y `BioTimeClient`
+  - Registra `_tarea_polling()` en el `scheduler` global con `@scheduler.registrar(...)`
+
+### 2. Creación de la app FastAPI
+```
+FastAPI(title, version, openapi_url, docs_url, redoc_url, lifespan=lifespan)
+  └── CORSMiddleware (orígenes de ALLOWED_ORIGINS)
+  └── api_router con prefijo API_V1_PREFIX (/api/v1)
+        ├── areas.router
+        ├── empleado.router
+        ├── huellas.router
+        ├── marcaciones.router
+        └── terminales.router
+  └── GET /health  (fuera del prefijo)
+```
+
+### 3. Lifespan (arranque)
+Cuando el servidor recibe su primera solicitud o arranca uvicorn:
+
+```
+lifespan() — startup:
+  1. iniciar_conexion_bd()
+     ├── asyncpg.create_pool(min=2, max=10) → _pool global
+     └── _migrar_constraint_biodata() — verifica/recrea constraint único en iclock_biodata
+  2. scheduler.iniciar()  (solo si TAREAS_HABILITADO=True)
+     └── asyncio.create_task(_loop_periodico) por cada tarea registrada
+         └── polling_tareas_preciso → cada TAREAS_INTERVALO_SEGUNDOS segundos
+  yield  ← aplicación disponible para peticiones
+```
+
+### 4. Ciclo de vida del scheduler (tareas periódicas)
+Cada `TAREAS_INTERVALO_SEGUNDOS` segundos:
+```
+_tarea_polling()
+  └── ServicioTareas.procesar_tareas()
+        1. PrecisoClient.obtener_tareas()  → GET /api/tareas (con OAuth2)
+        2. _filtrar_tareas_por_ip()        → filtra por TAREAS_IPS_PERMITIR / TAREAS_IPS_IGNORAR
+        3. Para cada tarea:
+             manejadores.ejecutar(tarea, biotime_client)  → opera contra BioTime
+             PrecisoClient.completar_tarea(payload)       → POST /api/completar_tarea
+```
+
+### 5. Ciclo de vida por petición HTTP
+```
+Request HTTP → CORSMiddleware → Router (/api/v1/...) → Endpoint
+  └── FastAPI DI resuelve dependencias (dependencias.py):
+        ├── BioTimeClient()                    ← nueva instancia por petición
+        ├── ServicioEmpleado(client)            ← IEmpleado
+        ├── ServicioMarcaciones(client)         ← IMarcaciones
+        ├── ServicioHuellas(RepositorioHuellas) ← IHuellas (usa _pool de asyncpg)
+        ├── ServicioTerminales(client)          ← ITerminales
+        ├── ServicioAreas(client)               ← IAreas
+        └── ServicioSincronizacion(client)      ← ISincronizacion
+            (o SincronizacionDeshabilitada si BIOTIME_SYNC_HABILITADO=False)
+  └── Respuesta serializada con ConfigurableAliasRoute
+        └── camelCase o snake_case según API_RESPONSE_CASE
+```
+
+### 6. Lifespan (apagado)
+```
+lifespan() — shutdown:
+  1. scheduler.detener()  → cancela todas las asyncio.Task
+  2. cerrar_conexion_bd() → _pool.close()
+```
+
 ## Estructura real
 
 ```
@@ -208,7 +278,7 @@ Todos los routers usan `route_class=ConfigurableAliasRoute`. El alias se genera 
 
 Solo se usa PostgreSQL directo para las huellas dactilares (la API REST de BioTime no las expone).
 
-- Pool iniciado en el `lifespan` de `main.py` via `iniciar_pool()` / `cerrar_pool()`
+- Pool iniciado en el `lifespan` de `main.py` via `iniciar_conexion_bd()` / `cerrar_conexion_bd()`
 - Conexión: `asyncpg`, pool min=2 / max=10
 - Tabla por defecto: `iclock_biodata` (configurable con `DB_TABLA_HUELLAS`)
 - Queries siempre usan parámetros posicionales (`$1`, `$2`) para evitar SQL injection

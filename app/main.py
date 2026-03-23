@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.scheduler import scheduler
-from app.db.conexion import cerrar_pool, iniciar_pool
+from app.db.conexion import cerrar_conexion_bd, iniciar_conexion_bd
 
 
 if settings.TAREAS_HABILITADO:
@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
         f"Host: {settings.HOST}:{settings.PORT}"
     )
 
-    await iniciar_pool()
+    await iniciar_conexion_bd()
 
     if settings.TAREAS_HABILITADO:
         scheduler.iniciar()
@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
     yield
 
     scheduler.detener()
-    await cerrar_pool()
+    await cerrar_conexion_bd()
     print("[App] Servicio detenido")
 
 

@@ -47,7 +47,7 @@ async def _migrar_constraint_biodata(pool: asyncpg.Pool) -> None:
         print(f"[DB] Constraint '{nombre}' migrado exitosamente")
 
 
-async def iniciar_pool() -> None:
+async def iniciar_conexion_bd() -> None:
     """Crea el pool de conexiones a PostgreSQL y aplica migraciones necesarias."""
     global _pool
     _pool = await asyncpg.create_pool(
@@ -62,7 +62,7 @@ async def iniciar_pool() -> None:
     await _migrar_constraint_biodata(_pool)
 
 
-async def cerrar_pool() -> None:
+async def cerrar_conexion_bd() -> None:
     """Cierra el pool de conexiones. Llamar en el shutdown de FastAPI."""
     global _pool
     if _pool:

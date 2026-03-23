@@ -69,6 +69,7 @@ class Settings(BaseSettings):
     TAREAS_INTERVALO_SEGUNDOS: int = Field(default=60, description="Intervalo en segundos entre cada consulta de tareas")
     TAREAS_IPS_PERMITIR: List[str] = Field(default_factory=list, description="Si no está vacío, solo se procesan tareas cuya IP esté en esta lista")
     TAREAS_IPS_IGNORAR: List[str] = Field(default_factory=list, description="Si no está vacío, se omiten las tareas cuya IP esté en esta lista")
+    UNICAMENTE_LEER_TAREAS: bool = Field(default=False, description="Si es True, el servicio solo leerá las tareas pero no las ejecutará. Útil para entornos de desarrollo o pruebas.")
 
     # Valores por defecto para empleados creados desde tareas Preciso (EMPDAT)
     # BioTime exige department y area; Preciso no los envía en el detalle de la tarea
