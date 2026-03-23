@@ -17,6 +17,22 @@ _biotime_client = BioTimeClient()
 _SEP_WIDTH = 60
 
 
+def _filtrar_tareas_por_ip(tareas):
+    """
+    Aplica los filtros de IP configurados en TAREAS_IPS_PERMITIR y TAREAS_IPS_IGNORAR.
+    - TAREAS_IPS_PERMITIR: si no está vacío, solo pasan las tareas cuya IP esté en la lista.
+    - TAREAS_IPS_IGNORAR: si no está vacío, se descartan las tareas cuya IP esté en la lista.
+    Si ambas variables están vacías, devuelve la lista sin modificar.
+    """
+    ips_permitir = set(settings.TAREAS_IPS_PERMITIR)
+    ips_ignorar = set(settings.TAREAS_IPS_IGNORAR)
+    if ips_permitir:
+        tareas = [t for t in tareas if t.ip in ips_permitir]
+    if ips_ignorar:
+        tareas = [t for t in tareas if t.ip not in ips_ignorar]
+    return tareas
+
+
 class ServicioTareas(ITareas):
     """
     Implementación del servicio de tareas.
@@ -45,6 +61,12 @@ class ServicioTareas(ITareas):
 
         if not tareas:
             print(f"[Tareas] Sin tareas pendientes")
+            return
+
+        tareas = _filtrar_tareas_por_ip(tareas)
+
+        if not tareas:
+            print(f"[Tareas] Sin tareas pendientes tras filtro de IPs")
             return
 
         total = len(tareas)
@@ -77,6 +99,15 @@ class ServicioTareas(ITareas):
 # ------------------------------------------------------------------
 
 _servicio = ServicioTareas(_preciso_client, _biotime_client)
+
+if settings.TAREAS_IPS_PERMITIR:
+    print(f"[Tareas] Filtro IPs permitidas: {', '.join(settings.TAREAS_IPS_PERMITIR)}")
+else:
+    print(f"[Tareas] No existen IPs para filtro de permitidas")
+if settings.TAREAS_IPS_IGNORAR:
+    print(f"[Tareas] Filtro IPs ignoradas:  {', '.join(settings.TAREAS_IPS_IGNORAR)}")
+else:
+    print(f"[Tareas] No existen IPs para filtro de ignoradas")
 
 
 @scheduler.registrar(
