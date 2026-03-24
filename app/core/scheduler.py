@@ -15,15 +15,47 @@ class _TareaPeriodica:
 
 
 async def _loop_periodico(tarea: _TareaPeriodica) -> None:
-    """Ejecuta una función periódicamente con manejo de errores."""
-    while True:
+    """
+    Ejecuta una función periódicamente con manejo de errores.
+
+    El intervalo es fijo: cada `intervalo_segundos` se verifica si la ejecución
+    anterior terminó. Si aún está en curso, se omite el turno y se vuelve a
+    intentar en el siguiente ciclo.
+    """
+    _en_ejecucion = False
+    _tarea_actual: asyncio.Task | None = None
+
+    async def _ejecutar() -> None:
+        nonlocal _en_ejecucion
+        _en_ejecucion = True
         try:
             await tarea.funcion()
         except asyncio.CancelledError:
             raise
         except Exception as e:
             print(f"[Scheduler] ERROR en {tarea.nombre}: {e}")
-        await asyncio.sleep(tarea.intervalo_segundos)
+        finally:
+            _en_ejecucion = False
+
+    # Primera ejecución inmediata al arrancar
+    _tarea_actual = asyncio.create_task(_ejecutar(), name=f"{tarea.nombre}_run")
+
+    while True:
+        try:
+            await asyncio.sleep(tarea.intervalo_segundos)
+        except asyncio.CancelledError:
+            if _tarea_actual and not _tarea_actual.done():
+                _tarea_actual.cancel()
+                try:
+                    await _tarea_actual
+                except (asyncio.CancelledError, Exception):
+                    pass
+            raise
+
+        if _en_ejecucion:
+            print(f"[Scheduler] {tarea.nombre}: ciclo anterior aún en ejecución, se omite este turno")
+        else:
+            _tarea_actual = asyncio.create_task(_ejecutar(), name=f"{tarea.nombre}_run")
 
 
 class Scheduler:

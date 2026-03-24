@@ -155,8 +155,7 @@ async def ejecutar_emphue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
         respuesta = "&".join(json.dumps(t, separators=(",", ":")) for t in templates)
         print(f"[EMPHUE] {len(templates)} template(s) — fids={[t['fid'] for t in templates]}")
     else:
-        respuesta = "0"
-        print(f"[EMPHUE] Sin templates para emp_code={emp_code}")
+        raise TareaPendiente(f"EMPHUE emp_code={emp_code} — sin templates, tarea queda pendiente")
     return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion, respuesta=respuesta)
 
 
