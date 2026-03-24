@@ -23,7 +23,8 @@ htmlcov/
 .env
 .env.local
 .env.*.local
-
+.env.desarrollo
+.env.produccion
 # IDE
 .vscode/
 .idea/
