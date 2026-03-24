@@ -254,9 +254,9 @@ Obtiene la lista paginada de empleados registrados en BioTime.
 
 Con el servicio corriendo, la documentación Swagger y ReDoc están disponibles en:
 
-- **Swagger UI**: `http://localhost:8000/api/v1/docs`
-- **ReDoc**: `http://localhost:8000/api/v1/redoc`
-- **OpenAPI JSON**: `http://localhost:8000/api/v1/openapi.json`
+- **Swagger UI**: `http://localhost:8001/api/v1/docs`
+- **ReDoc**: `http://localhost:8001/api/v1/redoc`
+- **OpenAPI JSON**: `http://localhost:8001/api/v1/openapi.json`
 
 ---
 
@@ -264,7 +264,7 @@ Con el servicio corriendo, la documentación Swagger y ReDoc están disponibles 
 
 | Variable | Descripción | Ejemplo |
 |---|---|---|
-| `BIOTIME_BASE_URL` | URL base de la API de BioTime (con `/` al final) | `http://192.168.1.100:8081/` |
+| `BIOTIME_BASE_URL` | URL base de la API de BioTime (con `/` al final) | `http://192.168.1.100:8001/` |
 | `BIOTIME_USERNAME` | Usuario administrador de BioTime | `admin` |
 | `BIOTIME_PASSWORD` | Contraseña del usuario de BioTime | `secret` |
 | `BIOTIME_TIMEOUT` | Timeout en segundos para peticiones a BioTime | `30` |

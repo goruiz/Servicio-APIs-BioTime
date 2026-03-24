@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # Configuración del servidor
     HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    PORT: int = 8001
     API_V1_PREFIX: str = "/api/v1"
 
     # CORS

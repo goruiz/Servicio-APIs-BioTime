@@ -40,7 +40,7 @@ nano .env  # o usa tu editor favorito
 
 **Configuración mínima requerida:**
 ```env
-BIOTIME_BASE_URL=http://tu-servidor-biotime:8081/
+BIOTIME_BASE_URL=http://tu-servidor-biotime:8001/
 BIOTIME_USERNAME=tu_usuario
 BIOTIME_PASSWORD=tu_password
 ```
@@ -63,27 +63,27 @@ python -m app.main
 
 **Opción C - Con uvicorn:**
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 ### 6. Verificar que Funciona
 
 Abre tu navegador en:
 
-- **API Docs (Swagger)**: http://localhost:8000/api/v1/docs
-- **Health Check**: http://localhost:8000/health
+- **API Docs (Swagger)**: http://localhost:8001/api/v1/docs
+- **Health Check**: http://localhost:8001/health
 
 ## 📝 Probar el Endpoint de Empleados
 
 ### Usando curl:
 
 ```bash
-curl http://localhost:8000/api/v1/employees?page=1&page_size=10
+curl http://localhost:8001/api/v1/employees?page=1&page_size=10
 ```
 
 ### Usando Swagger UI:
 
-1. Ve a http://localhost:8000/api/v1/docs
+1. Ve a http://localhost:8001/api/v1/docs
 2. Expande el endpoint `GET /api/v1/employees`
 3. Haz click en "Try it out"
 4. Ajusta los parámetros page y page_size
@@ -94,7 +94,7 @@ curl http://localhost:8000/api/v1/employees?page=1&page_size=10
 ```json
 {
   "count": 100,
-  "next": "http://localhost:8000/api/v1/employees/?page=2",
+  "next": "http://localhost:8001/api/v1/employees/?page=2",
   "previous": null,
   "data": [
     {

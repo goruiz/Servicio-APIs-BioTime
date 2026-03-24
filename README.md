@@ -82,11 +82,11 @@ python -m app.main
 uvicorn app.main:app --reload
 ```
 
-La aplicación estará disponible en: `http://localhost:8000`
+La aplicación estará disponible en: `http://localhost:8001`
 
-- **Documentación Swagger**: `http://localhost:8000/api/v1/docs`
-- **ReDoc**: `http://localhost:8000/api/v1/redoc`
-- **Health Check**: `http://localhost:8000/health`
+- **Documentación Swagger**: `http://localhost:8001/api/v1/docs`
+- **ReDoc**: `http://localhost:8001/api/v1/redoc`
+- **Health Check**: `http://localhost:8001/health`
 
 ## 📝 Variables de Entorno
 
@@ -98,10 +98,10 @@ PROJECT_NAME=Servicio APIs BioTime
 VERSION=1.0.0
 DEBUG=True
 HOST=0.0.0.0
-PORT=8000
+PORT=8001
 
 # BioTime API
-BIOTIME_BASE_URL=http://localhost:8081/
+BIOTIME_BASE_URL=http://localhost:8001/
 BIOTIME_USERNAME=tu_usuario
 BIOTIME_PASSWORD=tu_password
 BIOTIME_TIMEOUT=30

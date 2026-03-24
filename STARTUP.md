@@ -137,7 +137,7 @@ uvicorn arranca el event loop de asyncio
 yield  ←  uvicorn anuncia que el servidor está listo
 
     INFO: Application startup complete.
-    INFO: Uvicorn running on http://0.0.0.0:8000
+    INFO: Uvicorn running on http://0.0.0.0:8001
 ```
 
 ---
@@ -220,7 +220,7 @@ t = 0s    python -m app.main
 t = 0s    uvicorn arranca
           │  Fase 2: abre pool PostgreSQL, lanza loop en background
           ▼
-t = 0s    servidor listo en http://0.0.0.0:8000
+t = 0s    servidor listo en http://0.0.0.0:8001
           │
           ├──────────────────────────────────────────────────────────────────►
           │   FastAPI atiende peticiones HTTP (GET /empleados, POST /huellas...)

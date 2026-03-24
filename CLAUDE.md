@@ -310,7 +310,7 @@ Si el recurso requiere BD directa: agregar repositorio en `app/db/repositorios/`
 | `ENVIRONMENT`             | `local`               | Ambiente: `local`, `desarrollo`, `produccion`                   |
 | `DEBUG`                   | `False`               | Modo debug                                                      |
 | `HOST`                    | `0.0.0.0`             | Host uvicorn                                                    |
-| `PORT`                    | `8000`                | Puerto uvicorn                                                  |
+| `PORT`                    | `8001`                | Puerto uvicorn                                                  |
 | `API_V1_PREFIX`           | `/api/v1`             | Prefijo de la API                                               |
 | `ALLOWED_ORIGINS`         | `["*"]`               | CORS: orígenes permitidos                                       |
 | `BIOTIME_TIMEOUT`         | `30`                  | Timeout en segundos para requests a BioTime                     |
