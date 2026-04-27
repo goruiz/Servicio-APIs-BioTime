@@ -82,12 +82,17 @@ def _parsear_datos_empleado(detalle: str, settings_) -> tuple[str, EmpleadoCreat
     last_name = nombre_partes[1] if len(nombre_partes) > 1 else ""
     card_no = partes[3] if len(partes) > 3 and partes[3].strip() else None
     device_password = partes[4] if len(partes) > 4 and partes[4].strip() else None
+    department_raw = partes[5].strip() if len(partes) > 5 and partes[5].strip() else None
+    area_raw = partes[6].strip() if len(partes) > 6 and partes[6].strip() else None
+    department = int(department_raw) if department_raw else settings_.BIOTIME_DEFAULT_DEPARTMENT_ID
+    area = [int(area_raw)] if area_raw else [settings_.BIOTIME_DEFAULT_AREA_ID]
     datos = EmpleadoCreateUpdateDto(
         emp_code=emp_code,
         first_name=first_name,
         last_name=last_name,
-        department=settings_.BIOTIME_DEFAULT_DEPARTMENT_ID,
-        area=[settings_.BIOTIME_DEFAULT_AREA_ID],
+        company=settings_.BIOTIME_DEFAULT_COMPANY_ID,
+        department=department,
+        area=area,
         card_no=card_no,
         device_password=device_password,
     )
@@ -207,6 +212,7 @@ async def ejecutar_rephue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 async def ejecutar_empdat(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
     emp_code, datos_entrantes = _parsear_datos_empleado(tarea.detalle, settings)
     print(f"[EMPDAT] emp_code={emp_code} | nombre={datos_entrantes.first_name} {datos_entrantes.last_name} | depto={datos_entrantes.department} | area={datos_entrantes.area}")
+
     service = _servicio_empleado(client)
     empleado = await service.buscar_por_emp_code(emp_code)
     

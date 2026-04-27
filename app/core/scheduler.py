@@ -2,9 +2,13 @@
 Scheduler de tareas periódicas basado en asyncio nativo.
 """
 import asyncio
+import time
+import traceback
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from typing import Any
+
+_INTERVALO_MINIMO_NOTIF = 15 * 60  # segundos entre notificaciones por la misma tarea
 
 
 @dataclass
@@ -12,6 +16,7 @@ class _TareaPeriodica:
     nombre: str
     intervalo_segundos: int
     funcion: Callable[[], Coroutine[Any, Any, None]]
+    _ultima_notif: float = field(default=0.0, init=False)
 
 
 async def _loop_periodico(tarea: _TareaPeriodica) -> None:
@@ -34,6 +39,14 @@ async def _loop_periodico(tarea: _TareaPeriodica) -> None:
             raise
         except Exception as e:
             print(f"[Scheduler] ERROR en {tarea.nombre}: {e}")
+            ahora = time.monotonic()
+            if ahora - tarea._ultima_notif >= _INTERVALO_MINIMO_NOTIF:
+                tarea._ultima_notif = ahora
+                from app.core.notificaciones import notificar  # lazy para evitar import circular
+                await notificar(
+                    f"Error en tarea periodica: {tarea.nombre}",
+                    f"{type(e).__name__}: {e}\n\n{traceback.format_exc(limit=8)}",
+                )
         finally:
             _en_ejecucion = False
 

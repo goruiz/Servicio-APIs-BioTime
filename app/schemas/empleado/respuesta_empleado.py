@@ -30,6 +30,7 @@ class EmpleadoCreateUpdateDto(BaseDto):
     emp_code: str = Field(..., description="Código único del empleado")
     first_name: str = Field(..., description="Nombre del empleado")
     last_name: str = Field(..., description="Apellido del empleado")
+    company: Optional[int] = Field(None, description="ID de la compañía en BioTime")
     department: Optional[int] = Field(None, description="ID del departamento en BioTime")
     position: Optional[int] = Field(None, description="ID del cargo/posición en BioTime")
     area: List[int] = Field(default_factory=list, description="Lista de IDs de áreas (puede ser vacía)")

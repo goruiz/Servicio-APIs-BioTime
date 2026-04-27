@@ -33,7 +33,7 @@ async def _migrar_constraint_biodata(pool: asyncpg.Pool) -> None:
             return
 
         if "sn" in fila["def"]:
-            print(f"[DB] Constraint de {tabla} ya incluye sn, no requiere migración")
+            # print(f"[DB] Constraint de {tabla} ya incluye sn, no requiere migración")
             return
 
         nombre = fila["conname"]

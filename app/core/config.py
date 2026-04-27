@@ -72,7 +72,8 @@ class Settings(BaseSettings):
     UNICAMENTE_LEER_TAREAS: bool = Field(default=False, description="Si es True, el servicio solo leerá las tareas pero no las ejecutará. Útil para entornos de desarrollo o pruebas.")
 
     # Valores por defecto para empleados creados desde tareas Preciso (EMPDAT)
-    # BioTime exige department y area; Preciso no los envía en el detalle de la tarea
+    # BioTime exige company, department y area; Preciso no los envía en el detalle de la tarea
+    BIOTIME_DEFAULT_COMPANY_ID: int = Field(default=1, description="ID de la compañía por defecto en BioTime")
     BIOTIME_DEFAULT_DEPARTMENT_ID: int = Field(default=1, description="ID del departamento por defecto en BioTime")
     BIOTIME_DEFAULT_AREA_ID: int = Field(default=1, description="ID del área por defecto en BioTime")
 
@@ -84,6 +85,9 @@ class Settings(BaseSettings):
     PRECISO_CLIENT_SECRET: str = Field(default="", description="client_secret de Laravel Passport en Preciso")
     PRECISO_TIMEOUT: int = Field(default=30, description="Timeout en segundos para peticiones a Preciso")
 
+    # Notificaciones Telegram
+    TELEGRAM_BOT_TOKEN: str = Field(default="", description="Token del bot de Telegram (vacío = notificaciones desactivadas)")
+    TELEGRAM_CHAT_ID: str = Field(default="", description="Chat ID o canal de Telegram destino de las notificaciones")
 
 
 # Instancia global de configuración

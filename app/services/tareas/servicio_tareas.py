@@ -11,6 +11,7 @@ from app.clients.preciso_client import (
     PrecisoConnectionError,
 )
 from app.core.config import settings
+from app.core.notificaciones import notificar
 from app.core.scheduler import scheduler
 from app.services.tareas import manejadores
 from app.services.tareas.interface_tareas import ITareas, TareaPendiente
@@ -53,6 +54,7 @@ class ServicioTareas(ITareas):
     ) -> None:
         self._preciso = preciso_client
         self._biotime = biotime_client
+        self._error_preciso_activo = False  # True mientras Preciso no responde
 
     async def procesar_tareas(self) -> None:
         """
@@ -67,8 +69,17 @@ class ServicioTareas(ITareas):
 
         try:
             tareas = await self._preciso.obtener_tareas()
+            if self._error_preciso_activo:
+                self._error_preciso_activo = False
+                await notificar("Conexion con Preciso restaurada")
         except (PrecisoAuthenticationError, PrecisoConnectionError) as e:
             print(f"[Tareas] ERROR - No se pudo conectar a Preciso: {e}")
+            if not self._error_preciso_activo:
+                self._error_preciso_activo = True
+                await notificar(
+                    "Sin conexion con Preciso",
+                    f"{type(e).__name__}: {e}",
+                )
             return
 
         if not tareas:
@@ -136,6 +147,10 @@ class ServicioTareas(ITareas):
                 print(
                     f"[Tareas] ERROR - Tarea ID={tarea.id_tarea} "
                     f"({tarea.instruccion}): {e}"
+                )
+                await notificar(
+                    f"Error en tarea {tarea.instruccion} #{tarea.id_tarea}",
+                    f"IP: {tarea.ip}\nDetalle: {tarea.detalle}\n\n{type(e).__name__}: {e}",
                 )
 
 # ------------------------------------------------------------------

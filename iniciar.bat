@@ -21,7 +21,7 @@ echo [INFO] Presiona Ctrl+C para detener
 echo.
 
 call venv\Scripts\activate.bat
-venv\Scripts\uvicorn.exe app.main:app --host 0.0.0.0 --port 8002
+venv\Scripts\uvicorn.exe app.main:app --host 0.0.0.0 --port 8002 --log-level warning
 
 echo.
 echo [INFO] Servidor detenido.
