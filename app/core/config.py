@@ -88,6 +88,7 @@ class Settings(BaseSettings):
     # Notificaciones Telegram
     TELEGRAM_BOT_TOKEN: str = Field(default="", description="Token del bot de Telegram (vacío = notificaciones desactivadas)")
     TELEGRAM_CHAT_ID: str = Field(default="", description="Chat ID o canal de Telegram destino de las notificaciones")
+    ENVIA_NOTIFICACIONES_TELEGRAM: bool = Field(default=False, description="Habilita el envío de notificaciones por Telegram")
 
 
 # Instancia global de configuración

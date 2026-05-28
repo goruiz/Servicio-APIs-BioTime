@@ -75,11 +75,36 @@ def _servicio_sincronizacion(client: BioTimeClient) -> ISincronizacion:
 # Parsea el detalle de una tarea de empleado y construye el DTO con los datos de configuracion por defecto
 def _parsear_datos_empleado(detalle: str, settings_) -> tuple[str, EmpleadoCreateUpdateDto]:
     partes = detalle.split("|")
+    
     emp_code = partes[0]
-    nombre_completo = partes[1] if len(partes) > 1 else emp_code
-    nombre_partes = nombre_completo.strip().split(" ", 1)
-    first_name = nombre_partes[0]
-    last_name = nombre_partes[1] if len(nombre_partes) > 1 else ""
+    nombre_completo = (
+        partes[1].strip()
+        if len(partes) > 1 and partes[1].strip()
+        else emp_code
+    )
+    partes_nombre = nombre_completo.split()
+
+
+    if len(partes_nombre) >= 4:
+        first_name = " ".join(partes_nombre[:2])
+        last_name = " ".join(partes_nombre[2:])
+
+    elif len(partes_nombre) == 3:
+        first_name = partes_nombre[0]
+        last_name = " ".join(partes_nombre[1:])
+
+    elif len(partes_nombre) == 2:
+        first_name = partes_nombre[0]
+        last_name = partes_nombre[1]
+
+    else:
+        first_name = nombre_completo
+        last_name = ""
+
+
+    first_name = first_name[:25]
+    last_name = last_name[:25]
+    
     card_no = partes[3] if len(partes) > 3 and partes[3].strip() else None
     device_password = partes[4] if len(partes) > 4 and partes[4].strip() else None
     department_raw = partes[5].strip() if len(partes) > 5 and partes[5].strip() else None

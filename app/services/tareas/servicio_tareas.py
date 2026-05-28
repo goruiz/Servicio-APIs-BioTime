@@ -148,10 +148,11 @@ class ServicioTareas(ITareas):
                     f"[Tareas] ERROR - Tarea ID={tarea.id_tarea} "
                     f"({tarea.instruccion}): {e}"
                 )
-                await notificar(
-                    f"Error en tarea {tarea.instruccion} #{tarea.id_tarea}",
-                    f"IP: {tarea.ip}\nDetalle: {tarea.detalle}\n\n{type(e).__name__}: {e}",
-                )
+                if settings.ENVIA_NOTIFICACIONES_TELEGRAM == True:
+                    await notificar(
+                        f"Error en tarea {tarea.instruccion} #{tarea.id_tarea}",
+                        f"IP: {tarea.ip}\nDetalle: {tarea.detalle}\n\n{type(e).__name__}: {e}",
+                    )
 
 # ------------------------------------------------------------------
 # Registro en el scheduler global
