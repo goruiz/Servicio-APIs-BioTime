@@ -18,6 +18,11 @@ class ISincronizacion(ABC):
         """
         pass
 
+    @abstractmethod
+    async def sincronizar_terminal(self, terminal_id: int) -> bool:
+        """Sincroniza un terminal específico por ID. Devuelve True si tuvo éxito."""
+        pass
+
 
 class SincronizacionDeshabilitada(ISincronizacion):
     """
@@ -27,3 +32,6 @@ class SincronizacionDeshabilitada(ISincronizacion):
 
     async def sincronizar(self) -> None:
         pass
+
+    async def sincronizar_terminal(self, terminal_id: int) -> bool:
+        return False

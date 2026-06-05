@@ -3,9 +3,9 @@ Servicio de biodata (templates biométricos) vía API REST de BioTime.
 Usado internamente por los manejadores de tareas (EMPHUE, DELHUE, COPHUE, REPHUE).
 No tiene ruta HTTP propia porque la API REST de BioTime no lo expone como recurso público.
 
-Lectura de templates (EMPHUE): usa PostgreSQL directo (iclock_biodata), ya que el endpoint
-iclock/api/biodata/ no existe en todas las versiones de BioTime.
-Escritura/borrado (COPHUE, REPHUE, DELHUE): usa la API REST de BioTime.
+Lectura y escritura de templates (EMPHUE, COPHUE, REPHUE): usan PostgreSQL directo (iclock_biodata),
+ya que el endpoint iclock/api/biodata/ no existe en todas las versiones de BioTime.
+Borrado (DELHUE): usa la API REST de BioTime (DELETE iclock/api/biodata/).
 """
 import asyncpg
 import base64
@@ -114,28 +114,37 @@ class ServicioBiodata:
         print(f"[Biodata] Eliminados templates — emp_code={emp_code}")
 
     async def registrar_template(self, emp_code: str, bio_data: str, terminal_sn: str) -> None:
-        """Registra un template biométrico en un terminal de BioTime.
+        """Registra un template biométrico directamente en PostgreSQL (iclock_biodata).
 
-        bio_data puede ser un JSON con el formato estructurado:
-          {'size': int, 'uid': int, 'fid': int, 'valid': int, 'template': str_hex}
-        En ese caso se extraen los campos y se convierte el template hex → base64 para BioTime.
+        iclock/api/biodata/ no existe en todas las versiones de BioTime, por lo que
+        se escribe en la base de datos y BioTime lo sincroniza al terminal via su propio ciclo.
+        bio_data debe ser JSON: {'size': int, 'uid': int, 'fid': int, 'valid': int, 'template': str_hex}
         """
         try:
             datos = json.loads(bio_data)
             template_bytes = bytes.fromhex(datos["template"])
             bio_tmp = base64.b64encode(template_bytes).decode()
-            payload = {
-                "emp_code": emp_code,
-                "bio_type": 1,
-                "bio_index": datos["fid"],
-                "bio_format": 0,
-                "bio_tmp": bio_tmp,
-                "valid": datos["valid"],
-                "sn": terminal_sn,
-            }
-            fid = datos["fid"]
-        except (json.JSONDecodeError, KeyError, ValueError):
-            payload = {"emp_code": emp_code, "bio_data": bio_data, "terminal_sn": terminal_sn}
-            fid = "?"
-        await self._client.post("iclock/api/biodata/", json=payload)
-        print(f"[Biodata] Template registrado — emp_code={emp_code} fid={fid} SN={terminal_sn}")
+            bio_index = datos["fid"]
+            valid = datos.get("valid", 1)
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            raise ValueError(f"bio_data inválido: {e}") from e
+
+        empleado = await ServicioEmpleado(self._client).buscar_por_emp_code(emp_code)
+        if not empleado:
+            raise ValueError(f"No se encontró el empleado emp_code={emp_code} en BioTime")
+
+        repositorio = RepositorioHuellas(self._pool)
+        await repositorio.insertar_o_actualizar_template(
+            employee_id=empleado.id,
+            bio_index=bio_index,
+            bio_type=1,
+            bio_no=0,
+            bio_format=0,
+            major_ver="10",
+            minor_ver="0",
+            valid=valid,
+            duress=0,
+            bio_tmp=bio_tmp,
+            sn=terminal_sn,
+        )
+        print(f"[Biodata] Template registrado en PostgreSQL — emp_code={emp_code} fid={bio_index} SN={terminal_sn}")

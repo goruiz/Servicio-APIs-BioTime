@@ -205,12 +205,11 @@ async def ejecutar_cophue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
     if not bio_data or bio_data == "0":
         raise TareaPendiente(f"COPHUE emp_code={emp_code} — sin huella, tarea queda pendiente")
     print(f"[COPHUE] emp_code={emp_code} | IP={tarea.ip} | template=presente")
-    try:
-        terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
-        sn = terminal.sn if terminal else ""
-        await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
-    except Exception as e:
-        print(f"[Tareas] AVISO - COPHUE no pudo registrar template en BioTime: {e}")
+    terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
+    sn = terminal.sn if terminal else ""
+    await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
+    if terminal:
+        await _servicio_sincronizacion(client).sincronizar_terminal(terminal.id)
     return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
@@ -219,12 +218,11 @@ async def ejecutar_rephue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
     emp_code, bio_data = tarea.detalle.split("|", 1)
     print(f"[REPHUE] emp_code={emp_code} | IP={tarea.ip} | template={'presente' if bio_data and bio_data != '0' else 'vacío'}")
     if bio_data and bio_data != "0":
-        try:
-            terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
-            sn = terminal.sn if terminal else ""
-            await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
-        except Exception as e:
-            print(f"[Tareas] AVISO - REPHUE no pudo registrar template en BioTime: {e}")
+        terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
+        sn = terminal.sn if terminal else ""
+        await _servicio_biodata(client).registrar_template(emp_code, bio_data, sn)
+        if terminal:
+            await _servicio_sincronizacion(client).sincronizar_terminal(terminal.id)
     else:
         print(f"[Tareas] REPHUE — emp_code={emp_code} sin template válido, cerrando tarea")
     return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)

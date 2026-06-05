@@ -133,10 +133,18 @@ class BioTimeClient:
                     )
 
         except httpx.HTTPStatusError as e:
-            print(f"[BioTime] ERROR - HTTP {e.response.status_code} en {method} {endpoint}")
-            raise BioTimeConnectionError(
-                f"Error HTTP {e.response.status_code}: {e.response.text}"
-            )
+            status = e.response.status_code
+            body = e.response.text
+            content_type = e.response.headers.get("content-type", "")
+            if "html" in content_type or body.lstrip().startswith("<"):
+                import re
+                clean = re.sub(r"<[^>]+>", " ", body)
+                clean = " ".join(clean.split())
+                detalle = clean[:200] if clean else f"HTTP {status}"
+            else:
+                detalle = body[:200]
+            print(f"[BioTime] ERROR - HTTP {status} en {method} {endpoint}: {detalle}")
+            raise BioTimeConnectionError(f"Error HTTP {status}: {detalle}")
         except httpx.RequestError as e:
             print(f"[BioTime] ERROR - Sin conexión en {method} {endpoint}: {e}")
             raise BioTimeConnectionError(f"Error de conexión: {str(e)}")
