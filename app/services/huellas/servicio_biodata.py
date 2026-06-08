@@ -168,11 +168,25 @@ class ServicioBiodata:
                 sincronizado=verificado,
             ))
 
+        # Encolar FINGERTMP para todos los destinos con sensor de huella (fp_count > 0)
+        comandos = await repositorio.encolar_fingertmp_masivo(sns=sns_destino_validos)
+        total_comandos = sum(r["comandos_encolados"] for r in comandos)
+        print(f"[Biodata] FINGERTMP encolados — {total_comandos} comandos hacia {len(comandos)} terminal(es)")
+
         return SincronizarTerminalesResponse(
             sn_origen=sn_origen,
             total_huellas_origen=total_origen,
             terminales=resultados,
         )
+
+    async def enviar_huellas_a_terminales(self, sns: list[str] | None = None) -> dict:
+        """Encola comandos DATA UPDATE FINGERTMP para todos los templates en iclock_biodata
+        de terminales con sensor de huella. BioTime los entrega al hardware en el próximo poll."""
+        repositorio = RepositorioHuellas(self._pool)
+        resultados = await repositorio.encolar_fingertmp_masivo(sns=sns)
+        total = sum(r["comandos_encolados"] for r in resultados)
+        print(f"[Biodata] Enviadas huellas a terminales — {total} comandos encolados en {len(resultados)} terminal(es)")
+        return {"total_comandos": total, "terminales": resultados}
 
     async def eliminar_por_emp_code(self, emp_code: str) -> None:
         """Elimina todos los templates biométricos de un empleado en BioTime."""
@@ -214,3 +228,16 @@ class ServicioBiodata:
             sn=terminal_sn,
         )
         print(f"[Biodata] Template registrado en PostgreSQL — emp_code={emp_code} fid={bio_index} SN={terminal_sn}")
+
+        terminal = await repositorio.obtener_terminal_por_sn(terminal_sn)
+        if terminal and terminal["finger_fun_on"]:
+            await repositorio.encolar_fingertmp(
+                terminal_id=terminal["id"],
+                emp_code=emp_code,
+                bio_index=bio_index,
+                valid=valid,
+                bio_tmp=bio_tmp,
+            )
+            print(f"[Biodata] Comando FINGERTMP encolado — terminal_id={terminal['id']} SN={terminal_sn}")
+        elif terminal:
+            print(f"[Biodata] Terminal SN={terminal_sn} sin FingerFunOn — FINGERTMP omitido")

@@ -3,6 +3,7 @@ Repositorio de huellas dactilares.
 Ejecuta queries SQL directamente sobre la tabla iclock_biodata de BioTime.
 La tabla se configura con DB_TABLA_HUELLAS en .env (default: iclock_biodata).
 """
+import base64
 import asyncpg
 
 from app.core.config import settings
@@ -155,3 +156,74 @@ class RepositorioHuellas:
                 employee_id, bio_index, bio_type, bio_no, bio_format,
                 major_ver, minor_ver, valid, duress, bio_tmp, sn,
             )
+
+    async def obtener_terminal_por_sn(self, sn: str) -> dict | None:
+        """Devuelve id, fp_count y finger_fun_on de un terminal.
+        finger_fun_on=True si el terminal tiene sensor de huella habilitado (FingerFunOn=1)."""
+        async with self._pool.acquire() as conn:
+            fila = await conn.fetchrow(
+                """SELECT t.id, t.fp_count,
+                          COALESCE(tp.param_value = '1', FALSE) AS finger_fun_on
+                   FROM iclock_terminal t
+                   LEFT JOIN iclock_terminalparameter tp
+                          ON tp.terminal_id = t.id AND tp.param_name = 'FingerFunOn'
+                   WHERE t.sn = $1""",
+                sn,
+            )
+        return dict(fila) if fila else None
+
+    async def encolar_fingertmp(
+        self, terminal_id: int, emp_code: str, bio_index: int, valid: int, bio_tmp: str
+    ) -> None:
+        """Inserta un comando DATA UPDATE FINGERTMP en iclock_terminalcommand.
+        BioTime lo entrega al terminal en el próximo poll ADMS (~10 segundos)."""
+        size = len(base64.b64decode(bio_tmp))
+        content = f"DATA UPDATE FINGERTMP PIN={emp_code}\tFID={bio_index}\tSize={size}\tValid={valid}\tTMP={bio_tmp}"
+        async with self._pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO iclock_terminalcommand (terminal_id, content, commit_time, package) VALUES ($1, $2, NOW(), NULL)",
+                terminal_id,
+                content,
+            )
+
+    async def encolar_fingertmp_masivo(self, sns: list[str] | None = None) -> list[dict]:
+        """Encola comandos DATA UPDATE FINGERTMP para todos los templates en iclock_biodata
+        de terminales con sensor de huella (fp_count > 0).
+        Si sns es None, procesa todos los terminales válidos.
+        Devuelve lista de {sn, alias, comandos_encolados}."""
+        async with self._pool.acquire() as conn:
+            filtro_sn = "AND t.sn = ANY($1::text[])" if sns else ""
+            params = [sns] if sns else []
+            filas = await conn.fetch(
+                f"""SELECT t.id AS terminal_id, t.sn, t.alias, e.emp_code,
+                           b.bio_index, b.valid, b.bio_tmp
+                    FROM {self._tabla} b
+                    JOIN iclock_terminal t ON t.sn = b.sn
+                    JOIN iclock_terminalparameter tp
+                         ON tp.terminal_id = t.id AND tp.param_name = 'FingerFunOn' AND tp.param_value = '1'
+                    JOIN personnel_employee e ON e.id = b.employee_id
+                    WHERE b.bio_tmp IS NOT NULL
+                    {filtro_sn}
+                    ORDER BY t.sn, e.emp_code, b.bio_index""",
+                *params,
+            )
+            if not filas:
+                return []
+            await conn.executemany(
+                "INSERT INTO iclock_terminalcommand (terminal_id, content, commit_time, package) VALUES ($1, $2, NOW(), NULL)",
+                [
+                    (
+                        fila["terminal_id"],
+                        f"DATA UPDATE FINGERTMP PIN={fila['emp_code']}\tFID={fila['bio_index']}\tSize={len(base64.b64decode(fila['bio_tmp']))}\tValid={fila['valid']}\tTMP={fila['bio_tmp']}",
+                    )
+                    for fila in filas
+                ],
+            )
+
+        conteo: dict[str, dict] = {}
+        for fila in filas:
+            sn = fila["sn"]
+            if sn not in conteo:
+                conteo[sn] = {"sn": sn, "alias": fila["alias"], "comandos_encolados": 0}
+            conteo[sn]["comandos_encolados"] += 1
+        return list(conteo.values())

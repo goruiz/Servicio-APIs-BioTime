@@ -75,3 +75,24 @@ class CopiarHuellaResponse(BaseDto):
 
     emp_code: str = Field(..., description="Código del empleado")
     terminales: list[ResultadoTerminal] = Field(..., description="Resultado por cada terminal")
+
+
+class EnviarHuellasRequest(BaseDto):
+    """Cuerpo opcional de la petición para enviar huellas a terminales."""
+
+    sns: list[str] | None = Field(None, description="SNs de los terminales destino. Si se omite, se procesan todos los terminales con sensor de huella.")
+
+
+class ResultadoEnvioTerminal(BaseDto):
+    """Resultado del envío de comandos FINGERTMP a un terminal."""
+
+    sn: str = Field(..., description="Número de serie del terminal")
+    alias: str = Field(..., description="Nombre del terminal en BioTime")
+    comandos_encolados: int = Field(..., description="Cantidad de comandos DATA UPDATE FINGERTMP encolados")
+
+
+class EnviarHuellasResponse(BaseDto):
+    """Resultado del envío masivo de huellas a terminales biométricos."""
+
+    total_comandos: int = Field(..., description="Total de comandos encolados en todos los terminales")
+    terminales: list[ResultadoEnvioTerminal] = Field(..., description="Detalle por terminal")

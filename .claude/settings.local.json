@@ -45,7 +45,15 @@
       "Bash(ssh:*)",
       "Bash(source:*)",
       "Bash(netstat -ano)",
-      "Bash(netsh interface:*)"
+      "Bash(netsh interface:*)",
+      "WebFetch(domain:www.linkedin.com)",
+      "WebFetch(domain:tecnosinergia.zendesk.com)",
+      "WebFetch(domain:www.zkteco-ea.com)",
+      "WebFetch(domain:zkteco.co.za)",
+      "WebFetch(domain:johnnn.tech)",
+      "WebFetch(domain:manuals.plus)",
+      "WebFetch(domain:studylib.net)",
+      "WebFetch(domain:medium.com)"
     ]
   }
 }

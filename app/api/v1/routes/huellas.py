@@ -10,6 +10,8 @@ from app.core.exceptions import BioTimeException
 from app.schemas.huellas.respuesta_huellas import (
     CopiarHuellaRequest,
     CopiarHuellaResponse,
+    EnviarHuellasRequest,
+    EnviarHuellasResponse,
     EstadoHuellasEmpleadoResponse,
     HuellaDto,
     SincronizarTerminalesRequest,
@@ -131,6 +133,28 @@ async def sincronizar_terminales(
 
     except Exception as e:
         print(f"[Huellas] ERROR - POST /huellas/sincronizar-terminales: {e}")
+        raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})
+
+
+@router.post("/enviar-a-terminales", response_model=EnviarHuellasResponse, status_code=status.HTTP_200_OK)
+async def enviar_huellas_a_terminales(
+    service: BiodataDependencia,
+    body: EnviarHuellasRequest | None = None,
+):
+    """
+    Encola comandos DATA UPDATE FINGERTMP en BioTime para todos los templates en iclock_biodata
+    de terminales con sensor de huella (fp_count > 0). BioTime los entrega al hardware en el
+    próximo poll ADMS (~10 segundos). Los terminales faciales (NYU) se omiten automáticamente.
+
+    Si se omite el cuerpo o sns es null, procesa todos los terminales con sensor de huella.
+    """
+    try:
+        sns = body.sns if body else None
+        resultado = await service.enviar_huellas_a_terminales(sns=sns)
+        return resultado
+
+    except Exception as e:
+        print(f"[Huellas] ERROR - POST /huellas/enviar-a-terminales: {e}")
         raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})
 
 
