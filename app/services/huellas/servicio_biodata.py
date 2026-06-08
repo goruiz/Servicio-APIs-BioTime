@@ -12,7 +12,13 @@ import base64
 import json
 
 from app.clients.biotime_client import BioTimeClient
+from app.core.exceptions import BioTimeException
 from app.db.repositorios.repositorio_huellas import RepositorioHuellas
+from app.schemas.huellas.respuesta_huellas import (
+    EstadoHuellasEmpleadoResponse,
+    ResultadoSincronizacionTerminal,
+    SincronizarTerminalesResponse,
+)
 from app.services.empleado.servicio_empleado import ServicioEmpleado
 
 
@@ -107,6 +113,66 @@ class ServicioBiodata:
             })
 
         return resultados
+
+    async def obtener_estado_huellas(self, emp_code: str) -> EstadoHuellasEmpleadoResponse:
+        """Indica si un empleado tiene huellas y en qué terminales están registradas."""
+        empleado = await ServicioEmpleado(self._client).buscar_por_emp_code(emp_code)
+        if not empleado:
+            raise ValueError(f"No se encontró el empleado emp_code={emp_code} en BioTime")
+
+        repositorio = RepositorioHuellas(self._pool)
+        sns = await repositorio.obtener_sns_por_empleado(empleado.id)
+
+        print(f"[Biodata] Estado huellas — emp_code={emp_code}: {len(sns)} terminal(es)")
+        return EstadoHuellasEmpleadoResponse(
+            emp_code=emp_code,
+            tiene_huellas=len(sns) > 0,
+            terminales=sns,
+        )
+
+    async def sincronizar_entre_terminales(
+        self, sn_origen: str, sns_destino: list[str]
+    ) -> SincronizarTerminalesResponse:
+        """Copia todas las huellas del terminal origen a uno o varios terminales destino.
+        Omite huellas que ya existan en cada destino. Verifica en BD que los datos quedaron correctamente."""
+        from app.services.terminales.servicio_terminales import ServicioTerminales
+
+        repositorio = RepositorioHuellas(self._pool)
+        servicio_terminales = ServicioTerminales(self._client)
+
+        total_origen = await repositorio.contar_huellas_por_terminal(sn_origen)
+        if total_origen == 0:
+            raise ValueError(f"El terminal SN={sn_origen} no tiene huellas registradas")
+
+        sns_destino_validos = [sn for sn in sns_destino if sn != sn_origen]
+
+        resultados = []
+        for sn_destino in sns_destino_validos:
+            try:
+                await servicio_terminales.obtener_terminal_por_sn(sn_destino)
+            except BioTimeException:
+                raise ValueError(f"Terminal destino SN={sn_destino} no encontrado en BioTime")
+
+            huellas_copiadas = await repositorio.copiar_huellas_entre_terminales(sn_origen, sn_destino)
+            total_destino = await repositorio.contar_huellas_por_terminal(sn_destino)
+            verificado = total_destino >= total_origen
+
+            print(
+                f"[Biodata] Terminal SN={sn_destino} — "
+                f"{huellas_copiadas} nuevas insertadas | "
+                f"origen={total_origen} destino={total_destino} verificado={'OK' if verificado else 'INCOMPLETO'}"
+            )
+            resultados.append(ResultadoSincronizacionTerminal(
+                sn_destino=sn_destino,
+                huellas_copiadas=huellas_copiadas,
+                sincronizado=verificado,
+            ))
+
+        return SincronizarTerminalesResponse(
+            sn_origen=sn_origen,
+            total_huellas_origen=total_origen,
+            terminales=resultados,
+        )
 
     async def eliminar_por_emp_code(self, emp_code: str) -> None:
         """Elimina todos los templates biométricos de un empleado en BioTime."""

@@ -68,6 +68,64 @@ class RepositorioHuellas:
             )
         return [dict(fila) for fila in filas]
 
+    async def obtener_sns_por_empleado(self, employee_id: int) -> list[str]:
+        """Devuelve los SNs de los terminales donde el empleado tiene huellas registradas."""
+        async with self._pool.acquire() as conn:
+            filas = await conn.fetch(
+                f"""SELECT DISTINCT sn FROM {self._tabla}
+                    WHERE employee_id = $1 AND bio_tmp IS NOT NULL AND sn IS NOT NULL
+                    ORDER BY sn""",
+                employee_id,
+            )
+        return [fila["sn"] for fila in filas]
+
+    async def contar_huellas_por_terminal(self, sn: str) -> int:
+        """Devuelve la cantidad de huellas con template no nulo en un terminal."""
+        async with self._pool.acquire() as conn:
+            return await conn.fetchval(
+                f"SELECT COUNT(*) FROM {self._tabla} WHERE sn = $1 AND bio_tmp IS NOT NULL",
+                sn,
+            )
+
+    async def copiar_huellas_entre_terminales(self, sn_origen: str, sn_destino: str) -> int:
+        """Copia todas las huellas de sn_origen a sn_destino en una sola operación SQL.
+        Omite registros que ya existan en destino (ON CONFLICT DO NOTHING).
+        Devuelve la cantidad de filas efectivamente insertadas."""
+        async with self._pool.acquire() as conn:
+            resultado = await conn.execute(
+                f"""INSERT INTO {self._tabla}
+                        (employee_id, bio_index, bio_type, bio_no, bio_format,
+                         major_ver, minor_ver, valid, duress, bio_tmp, sn, update_time, status)
+                    SELECT employee_id, bio_index, bio_type, bio_no, bio_format,
+                           major_ver, minor_ver, valid, duress, bio_tmp, $2, NOW(), 0
+                    FROM {self._tabla}
+                    WHERE sn = $1 AND bio_tmp IS NOT NULL
+                    ON CONFLICT (employee_id, bio_no, bio_index, bio_type, bio_format, major_ver, minor_ver, sn)
+                    DO NOTHING""",
+                sn_origen,
+                sn_destino,
+            )
+        # asyncpg devuelve "INSERT 0 N" donde N = filas insertadas
+        return int(resultado.split()[-1])
+
+    async def obtener_huellas_por_terminal(
+        self, sn: str, page: int = 1, page_size: int = 10
+    ) -> tuple[int, list[dict]]:
+        """Devuelve (total, registros) de las huellas de un terminal paginadas."""
+        offset = (page - 1) * page_size
+        async with self._pool.acquire() as conn:
+            total: int = await conn.fetchval(
+                f"SELECT COUNT(*) FROM {self._tabla} WHERE sn = $1",
+                sn,
+            )
+            filas = await conn.fetch(
+                f"SELECT * FROM {self._tabla} WHERE sn = $1 ORDER BY employee_id, bio_index LIMIT $2 OFFSET $3",
+                sn,
+                page_size,
+                offset,
+            )
+        return total, [dict(fila) for fila in filas]
+
     async def insertar_o_actualizar_template(
         self,
         employee_id: int,

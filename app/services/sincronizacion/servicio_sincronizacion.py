@@ -70,7 +70,9 @@ class ServicioSincronizacion(ISincronizacion):
             endpoint = endpoint_template.format(id=terminal_id)
             try:
                 await self._client.post(endpoint, json={})
+                print(f"[Sync] Terminal ID={terminal_id} — OK via {endpoint}")
                 return True
-            except Exception:
+            except Exception as e:
+                print(f"[Sync] Terminal ID={terminal_id} — FAIL {endpoint}: {e}")
                 continue
         return False

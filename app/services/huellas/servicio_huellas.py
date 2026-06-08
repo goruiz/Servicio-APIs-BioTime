@@ -29,3 +29,13 @@ class ServicioHuellas(IHuellas):
         huellas = [HuellaDto(**fila) for fila in filas]
         print(f"[Huellas] Obtenidas {len(huellas)}/{total} — empleado ID={empleado_id}")
         return PaginatedResponse[HuellaDto](count=total, next=None, previous=None, data=huellas)
+
+    async def obtener_huellas_por_terminal(
+        self, sn: str, page: int = 1, page_size: int = 10
+    ) -> PaginatedResponse[HuellaDto]:
+        total, filas = await self._repositorio.obtener_huellas_por_terminal(
+            sn=sn, page=page, page_size=page_size
+        )
+        huellas = [HuellaDto(**fila) for fila in filas]
+        print(f"[Huellas] Obtenidas {len(huellas)}/{total} — terminal SN={sn}")
+        return PaginatedResponse[HuellaDto](count=total, next=None, previous=None, data=huellas)

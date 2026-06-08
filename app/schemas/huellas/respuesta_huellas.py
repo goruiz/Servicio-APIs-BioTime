@@ -24,6 +24,37 @@ class HuellaDto(BaseDto):
     sn: Optional[str] = Field(None, description="Número de serie del terminal de origen")
 
 
+class EstadoHuellasEmpleadoResponse(BaseDto):
+    """Indica si un empleado tiene huellas registradas y en qué terminales."""
+
+    emp_code: str = Field(..., description="Código del empleado en BioTime")
+    tiene_huellas: bool = Field(..., description="True si el empleado tiene al menos una huella registrada")
+    terminales: list[str] = Field(..., description="Números de serie de los terminales donde tiene huella")
+
+
+class SincronizarTerminalesRequest(BaseDto):
+    """Cuerpo de la petición para sincronizar huellas de un terminal origen a uno o varios destinos."""
+
+    sn_origen: str = Field(..., description="Número de serie del terminal de origen")
+    sns_destino: list[str] = Field(..., min_length=1, description="Números de serie de los terminales destino")
+
+
+class ResultadoSincronizacionTerminal(BaseDto):
+    """Resultado de la sincronización hacia un terminal destino específico."""
+
+    sn_destino: str = Field(..., description="Número de serie del terminal destino")
+    huellas_copiadas: int = Field(..., description="Huellas nuevas insertadas (sin contar las ya existentes)")
+    sincronizado: bool = Field(..., description="Si el conteo en destino coincide con el origen tras la operación")
+
+
+class SincronizarTerminalesResponse(BaseDto):
+    """Resultado de la operación de sincronización entre terminales."""
+
+    sn_origen: str = Field(..., description="Número de serie del terminal origen")
+    total_huellas_origen: int = Field(..., description="Total de huellas en el terminal origen")
+    terminales: list[ResultadoSincronizacionTerminal] = Field(..., description="Resultado por cada terminal destino")
+
+
 class CopiarHuellaRequest(BaseDto):
     """Cuerpo de la petición para copiar huellas de un empleado a uno o varios terminales."""
 

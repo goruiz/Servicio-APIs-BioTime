@@ -22,3 +22,10 @@ class IHuellas(ABC):
     ) -> PaginatedResponse[HuellaDto]:
         """Obtiene las huellas registradas de un empleado específico por su employee_id (PK en iclock_biodata)."""
         pass
+
+    @abstractmethod
+    async def obtener_huellas_por_terminal(
+        self, sn: str, page: int = 1, page_size: int = 10
+    ) -> PaginatedResponse[HuellaDto]:
+        """Obtiene las huellas registradas en un terminal específico por su número de serie (SN)."""
+        pass
