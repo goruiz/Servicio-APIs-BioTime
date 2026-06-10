@@ -5,6 +5,7 @@ Lógica de negocio para interactuar con el recurso de transacciones de BioTime.
 from typing import Optional
 
 from app.clients.biotime_client import BioTimeClient
+from app.core.exceptions import BioTimeNotFoundError
 from app.interfaces.marcaciones.interface_marcaciones import IMarcaciones
 from app.schemas.biotime.common import PaginatedResponse
 from app.schemas.marcaciones.respuesta_marcaciones import MarcacionesDto
@@ -69,6 +70,62 @@ class ServicioMarcaciones(IMarcaciones):
             page += 1
         print(f"[Marcaciones] Obtenidas {len(marcaciones)} por terminal — SN={terminal_sn}")
         return marcaciones
+
+    async def obtener_marcaciones_por_serial(
+        self,
+        terminal_sn: str,
+        fecha_inicio: Optional[str] = None,
+        fecha_fin: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> PaginatedResponse[MarcacionesDto]:
+        params: dict = {"terminal_sn": terminal_sn, "page": page, "page_size": page_size}
+        if fecha_inicio is not None:
+            params["start_time"] = fecha_inicio
+        if fecha_fin is not None:
+            params["end_time"] = fecha_fin
+
+        response_data = await self._client.get("iclock/api/transactions/", params=params)
+        marcaciones = [MarcacionesDto(**marc) for marc in response_data.get("data", [])]
+        result = PaginatedResponse[MarcacionesDto](
+            count=response_data.get("count", 0),
+            next=response_data.get("next"),
+            previous=response_data.get("previous"),
+            data=marcaciones,
+        )
+        print(f"[Marcaciones] Obtenidas {len(marcaciones)}/{result.count} — terminal_sn={terminal_sn}")
+        return result
+
+    async def obtener_marcaciones_por_ip(
+        self,
+        ip_terminal: str,
+        fecha_inicio: Optional[str] = None,
+        fecha_fin: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> PaginatedResponse[MarcacionesDto]:
+        terminal_sn = await self._buscar_sn_por_ip(ip_terminal)
+        if terminal_sn is None:
+            raise BioTimeNotFoundError(f"Terminal con IP '{ip_terminal}' no encontrado")
+        return await self.obtener_marcaciones_por_serial(
+            terminal_sn=terminal_sn,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+            page=page,
+            page_size=page_size,
+        )
+
+    async def _buscar_sn_por_ip(self, ip: str) -> Optional[str]:
+        page = 1
+        while True:
+            response_data = await self._client.get("iclock/api/terminals/", params={"page": page, "page_size": 50})
+            for t in response_data.get("data", []):
+                if t.get("ip_address") == ip:
+                    return t.get("sn")
+            if not response_data.get("next"):
+                break
+            page += 1
+        return None
 
     async def eliminar_marcaciones_por_id(self, id_marcacion: str) -> None:
         await self._client.delete(f"iclock/api/transactions/{id_marcacion}/")

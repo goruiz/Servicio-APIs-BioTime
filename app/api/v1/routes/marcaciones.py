@@ -74,6 +74,83 @@ async def obtener_marcaciones_por_empleado(
         )
 
 
+@router.get("/por-terminal", response_model=List[MarcacionesDto])
+async def obtener_marcaciones_por_terminal(
+    service: MarcacionesDependencia,
+    terminal_sn: str = Query(..., description="Número de serie del terminal (SN)"),
+    fecha_inicio: Optional[str] = Query(default=None, description="Fecha de inicio (ej: 2024-01-01 00:00:00)"),
+    fecha_fin: Optional[str] = Query(default=None, description="Fecha de fin (ej: 2024-01-31 23:59:59)"),
+    page: int = Query(default=1, ge=1, description="Número de página"),
+    page_size: int = Query(default=10, ge=1, le=100, description="Tamaño de página"),
+):
+    """Obtiene la lista paginada de marcaciones desde BioTime por número de serie del terminal."""
+    try:
+        result = await service.obtener_marcaciones_por_serial(
+            terminal_sn=terminal_sn,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+            page=page,
+            page_size=page_size,
+        )
+        return result.data
+
+    except BioTimeException as e:
+        print(f"[Marcaciones] ERROR - GET /marcaciones/por-terminal sn={terminal_sn}: {e.message} (HTTP {e.status_code})")
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={"error": e.message, "status_code": e.status_code},
+        )
+
+    except Exception as e:
+        print(f"[Marcaciones] ERROR - GET /marcaciones/por-terminal sn={terminal_sn}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Error interno del servidor", "detail": str(e)},
+        )
+
+
+@router.get("/por-ip", response_model=List[MarcacionesDto])
+async def obtener_marcaciones_por_ip(
+    service: MarcacionesDependencia,
+    ip_terminal: str = Query(..., description="Dirección IP del terminal (ej: 192.168.1.10)"),
+    fecha_inicio: Optional[str] = Query(default=None, description="Fecha de inicio (ej: 2024-01-01 00:00:00)"),
+    fecha_fin: Optional[str] = Query(default=None, description="Fecha de fin (ej: 2024-01-31 23:59:59)"),
+    page: int = Query(default=1, ge=1, description="Número de página"),
+    page_size: int = Query(default=10, ge=1, le=100, description="Tamaño de página"),
+):
+    """
+    Obtiene la lista paginada de marcaciones de un terminal por su dirección IP.
+
+    - Sin fechas: retorna todas las marcaciones del terminal.
+    - Solo fecha_inicio: desde esa fecha hasta la más reciente.
+    - Solo fecha_fin: desde el inicio de los registros hasta esa fecha.
+    - Ambas fechas: rango exacto.
+    """
+    try:
+        result = await service.obtener_marcaciones_por_ip(
+            ip_terminal=ip_terminal,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+            page=page,
+            page_size=page_size,
+        )
+        return result.data
+
+    except BioTimeException as e:
+        print(f"[Marcaciones] ERROR - GET /marcaciones/por-ip ip={ip_terminal}: {e.message} (HTTP {e.status_code})")
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={"error": e.message, "status_code": e.status_code},
+        )
+
+    except Exception as e:
+        print(f"[Marcaciones] ERROR - GET /marcaciones/por-ip ip={ip_terminal}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": "Error interno del servidor", "detail": str(e)},
+        )
+
+
 @router.delete("/por-filtro")
 async def eliminar_marcaciones(
     service: MarcacionesDependencia,

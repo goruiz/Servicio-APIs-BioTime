@@ -60,6 +60,30 @@ class IMarcaciones(ABC):
         pass
 
     @abstractmethod
+    async def obtener_marcaciones_por_serial(
+        self,
+        terminal_sn: str,
+        fecha_inicio: Optional[str] = None,
+        fecha_fin: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> PaginatedResponse[MarcacionesDto]:
+        """Obtiene la lista paginada de marcaciones de un terminal por su número de serie."""
+        pass
+
+    @abstractmethod
+    async def obtener_marcaciones_por_ip(
+        self,
+        ip_terminal: str,
+        fecha_inicio: Optional[str] = None,
+        fecha_fin: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> PaginatedResponse[MarcacionesDto]:
+        """Obtiene marcaciones de un terminal buscando por su dirección IP."""
+        pass
+
+    @abstractmethod
     async def eliminar_marcaciones_por_id(
         self, id_marcacion: str
     ) -> None:
