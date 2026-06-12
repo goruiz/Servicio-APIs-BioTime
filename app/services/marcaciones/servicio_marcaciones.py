@@ -56,14 +56,21 @@ class ServicioMarcaciones(IMarcaciones):
         return result
 
     async def obtener_marcaciones_por_terminal(
-        self, terminal_sn: str, fecha_inicio: str, page_size: int = 100
+        self,
+        terminal_sn: str,
+        fecha_inicio: Optional[str] = None,
+        fecha_fin: Optional[str] = None,
+        page_size: int = 100,
     ) -> list[MarcacionesDto]:
         marcaciones: list[MarcacionesDto] = []
         page = 1
         while True:
-            response_data = await self._client.get("iclock/api/transactions/", params={
-                "terminal_sn": terminal_sn, "start_time": fecha_inicio, "page": page, "page_size": page_size,
-            })
+            params: dict = {"terminal_sn": terminal_sn, "page": page, "page_size": page_size}
+            if fecha_inicio is not None:
+                params["start_time"] = fecha_inicio
+            if fecha_fin is not None:
+                params["end_time"] = fecha_fin
+            response_data = await self._client.get("iclock/api/transactions/", params=params)
             marcaciones.extend(MarcacionesDto(**marc) for marc in response_data.get("data", []))
             if not response_data.get("next"):
                 break

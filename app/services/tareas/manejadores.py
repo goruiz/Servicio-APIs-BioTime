@@ -30,6 +30,7 @@ from app.interfaces.sincronizacion.interface_sincronizacion import (
 )
 from app.schemas.empleado.respuesta_empleado import EmpleadoCreateUpdateDto
 from app.schemas.tareas.tarea import CompletarTarea, TareaDto
+from app.db.repositorios.repositorio_empmar_cursor import RepositorioEmpmarCursor
 from app.db.repositorios.repositorio_empleado import RepositorioEmpleado
 from app.services.empleado.servicio_empleado import ServicioEmpleado
 from app.services.huellas.servicio_biodata import ServicioBiodata
@@ -127,28 +128,50 @@ def _parsear_datos_empleado(detalle: str, settings_) -> tuple[str, EmpleadoCreat
 # Manejadores de marcaciones
 
 
-# Lee las marcaciones del terminal de las ultimas 24h y las envia a Preciso
+# Lee las marcaciones no procesadas del terminal usando cursor persistente por terminal
 async def ejecutar_empmar(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
     print(f"[EMPMAR] Inicio — IP={tarea.ip} | emp_code={tarea.detalle}")
 
-    print(f"[EMPMAR] Buscando terminal por IP={tarea.ip} en BioTime...")
     terminal = await _servicio_terminales(client).buscar_por_ip(tarea.ip)
     if not terminal:
         print(f"[EMPMAR] Terminal no encontrado para IP={tarea.ip} — cerrando tarea sin marcaciones")
         return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
     print(f"[EMPMAR] Terminal encontrado — SN={terminal.sn} | ID={terminal.id}")
 
-    fecha_inicio = (datetime.datetime.now() - datetime.timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[EMPMAR] Consultando marcaciones desde {fecha_inicio} para SN={terminal.sn}...")
+    cursor = RepositorioEmpmarCursor(obtener_pool())
+    ultima_punch_time = await cursor.obtener_cursor(terminal.sn)
+
+    if ultima_punch_time:
+        # +1 segundo para no repetir la última marcación ya enviada
+        fecha_inicio = (
+            datetime.datetime.strptime(ultima_punch_time, "%Y-%m-%d %H:%M:%S")
+            + datetime.timedelta(seconds=1)
+        ).strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[EMPMAR] Cursor encontrado — consultando desde {fecha_inicio}")
+    else:
+        fecha_inicio = None
+        print(f"[EMPMAR] Sin cursor previo — consultando todas las marcaciones del terminal")
+
     marcaciones = await _servicio_marcaciones(client).obtener_marcaciones_por_terminal(terminal.sn, fecha_inicio)
     print(f"[EMPMAR] {len(marcaciones)} marcación(es) obtenida(s)")
+
+    nueva_punch_time = max(m.punch_time for m in marcaciones) if marcaciones else None
+
+    async def _guardar_cursor() -> None:
+        await cursor.actualizar_cursor(terminal.sn, nueva_punch_time)
+        print(f"[EMPMAR] Cursor actualizado → {nueva_punch_time}")
 
     partes = [f"{m.emp_code}|{m.punch_time}" for m in marcaciones]
     for i, p in enumerate(partes, 1):
         print(f"[EMPMAR]   [{i}] {p}")
     respuesta = "&".join(partes) if partes else "0"
     print(f"[EMPMAR] Respuesta final: {respuesta}")
-    return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion, respuesta=respuesta)
+    return CompletarTarea(
+        id_tarea=tarea.id_tarea,
+        instruccion=tarea.instruccion,
+        respuesta=respuesta,
+        on_completado=_guardar_cursor if nueva_punch_time else None,
+    )
 
 
 # Lee las marcaciones del terminal igual que EMPMAR (el borrado lo realiza el daemon directamente en el dispositivo)

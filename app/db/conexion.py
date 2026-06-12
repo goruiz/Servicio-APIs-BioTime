@@ -47,6 +47,17 @@ async def _migrar_constraint_biodata(pool: asyncpg.Pool) -> None:
         print(f"[DB] Constraint '{nombre}' migrado exitosamente")
 
 
+async def _crear_tabla_empmar_cursor(pool: asyncpg.Pool) -> None:
+    """Crea la tabla de cursores EMPMAR si no existe."""
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """CREATE TABLE IF NOT EXISTS servicio_empmar_cursor (
+                terminal_sn       TEXT PRIMARY KEY,
+                ultima_punch_time TEXT NOT NULL
+            )"""
+        )
+
+
 async def iniciar_conexion_bd() -> None:
     """Crea el pool de conexiones a PostgreSQL y aplica migraciones necesarias."""
     global _pool
@@ -60,6 +71,7 @@ async def iniciar_conexion_bd() -> None:
         max_size=10,
     )
     await _migrar_constraint_biodata(_pool)
+    await _crear_tabla_empmar_cursor(_pool)
 
 
 async def cerrar_conexion_bd() -> None:

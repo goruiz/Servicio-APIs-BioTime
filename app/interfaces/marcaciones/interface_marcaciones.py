@@ -54,9 +54,13 @@ class IMarcaciones(ABC):
 
     @abstractmethod
     async def obtener_marcaciones_por_terminal(
-        self, terminal_sn: str, fecha_inicio: str, page_size: int = 100
+        self,
+        terminal_sn: str,
+        fecha_inicio: Optional[str] = None,
+        fecha_fin: Optional[str] = None,
+        page_size: int = 100,
     ) -> list[MarcacionesDto]:
-        """Obtiene todas las marcaciones de un terminal desde una fecha, paginando internamente."""
+        """Obtiene todas las marcaciones de un terminal paginando internamente."""
         pass
 
     @abstractmethod

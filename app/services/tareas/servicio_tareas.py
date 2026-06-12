@@ -128,6 +128,9 @@ class ServicioTareas(ITareas):
                     respuesta.get("zerror_code") if respuesta else None
                 )
 
+                if payload.on_completado:
+                    await payload.on_completado()
+
                 if error_code:
                     detalle = respuesta.get("detalle", "sin detalle")
                     print(f"[Tareas] Completado | Preciso: {detalle}")

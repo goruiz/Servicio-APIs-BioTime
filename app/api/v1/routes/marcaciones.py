@@ -6,7 +6,9 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query
 
 from app.api.dependencias import MarcacionesDependencia, SincronizacionDependencia
+from app.clients.preciso_client import PrecisoClient, PrecisoConnectionError
 from app.core.exceptions import BioTimeException
+from app.schemas.tareas.tarea import CompletarTarea
 from app.schemas.marcaciones.respuesta_marcaciones import MarcacionesDto
 from app.utils.routing import ConfigurableAliasRoute
 
@@ -149,6 +151,56 @@ async def obtener_marcaciones_por_ip(
             status_code=500,
             detail={"error": "Error interno del servidor", "detail": str(e)},
         )
+
+
+@router.post("/recuperar-en-preciso")
+async def recuperar_marcaciones_en_preciso(
+    service: MarcacionesDependencia,
+    id_tarea: int = Query(..., description="ID de la tarea EMPMAR pendiente en Preciso"),
+    terminal_sn: str = Query(..., description="Número de serie del terminal (ej: NYU7251800550)"),
+    fecha_inicio: Optional[str] = Query(default=None, description="Fecha de inicio (ej: 2024-01-01 00:00:00). Sin valor: desde el inicio de los registros"),
+    fecha_fin: Optional[str] = Query(default=None, description="Fecha de fin (ej: 2024-01-31 23:59:59). Sin valor: hasta la más reciente"),
+):
+    """
+    Recupera marcaciones de BioTime y las envía a Preciso como respuesta a una tarea EMPMAR.
+
+    Útil para copiar marcaciones históricas que Preciso no recibió en su momento.
+    El id_tarea debe corresponder a una tarea EMPMAR pendiente en Preciso.
+    """
+    try:
+        marcaciones = await service.obtener_marcaciones_por_terminal(
+            terminal_sn=terminal_sn,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+        )
+
+        if not marcaciones:
+            return {"enviadas": 0, "mensaje": "No se encontraron marcaciones para los filtros indicados"}
+
+        respuesta = "&".join(f"{m.emp_code}|{m.punch_time}" for m in marcaciones)
+
+        preciso = PrecisoClient()
+        await preciso.completar_tarea(
+            CompletarTarea(id_tarea=id_tarea, instruccion="EMPMAR", respuesta=respuesta)
+        )
+
+        print(f"[Recuperar] Enviadas {len(marcaciones)} marcaciones a Preciso — id_tarea={id_tarea} SN={terminal_sn}")
+        return {"enviadas": len(marcaciones), "id_tarea": id_tarea}
+
+    except PrecisoConnectionError as e:
+        print(f"[Recuperar] ERROR Preciso — id_tarea={id_tarea}: {e}")
+        raise HTTPException(status_code=502, detail={"error": str(e)})
+
+    except BioTimeException as e:
+        print(f"[Recuperar] ERROR BioTime — id_tarea={id_tarea}: {e.message} (HTTP {e.status_code})")
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={"error": e.message, "status_code": e.status_code},
+        )
+
+    except Exception as e:
+        print(f"[Recuperar] ERROR — id_tarea={id_tarea}: {e}")
+        raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})
 
 
 @router.delete("/por-filtro")

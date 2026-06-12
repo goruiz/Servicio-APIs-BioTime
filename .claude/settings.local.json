@@ -53,7 +53,9 @@
       "WebFetch(domain:johnnn.tech)",
       "WebFetch(domain:manuals.plus)",
       "WebFetch(domain:studylib.net)",
-      "WebFetch(domain:medium.com)"
+      "WebFetch(domain:medium.com)",
+      "Bash(ls \"C:/Users/Administrator/Documents/Proyectos/Preciso/precisoapi\" 2>/dev/null || echo \"NO_ACCESO\")",
+      "Read(//c/Users/Administrator/Documents/Proyectos/Preciso/**)"
     ]
   }
 }

@@ -1,7 +1,9 @@
 """
 Schemas (DTOs) para el sistema de tareas de Preciso.
 """
-from pydantic import BaseModel
+from typing import Awaitable, Callable, Optional
+
+from pydantic import BaseModel, Field
 
 
 class TareaDto(BaseModel):
@@ -17,8 +19,11 @@ class TareaDto(BaseModel):
 class CompletarTarea(BaseModel):
     """Payload para marcar una tarea como completada en Preciso (POST /api/completar_tarea)."""
 
-    model_config = {"extra": "allow"}
+    model_config = {"extra": "allow", "arbitrary_types_allowed": True}
 
     id_tarea: int
     instruccion: str
     respuesta: str = "0"
+    # Coroutine opcional que se ejecuta DESPUÉS de que Preciso confirma recepción.
+    # No se serializa en el POST a Preciso.
+    on_completado: Optional[Callable[[], Awaitable[None]]] = Field(default=None, exclude=True)
