@@ -76,11 +76,11 @@ class ServicioEmpleado(IEmpleado):
         return empleado
 
     async def actualizar_empleado(self, empleado_id: int, datos: EmpleadoCreateUpdateDto) -> EmployeeDto:
-        body = datos.model_dump(exclude_none=True, exclude={"card_no", "device_password"})
-        response_data = await self._client.put(
+        body = datos.model_dump(exclude_none=True, exclude={"card_no", "device_password", "area"})
+        response_data = await self._client.patch(
             f"personnel/api/employees/{empleado_id}/", json=body
         )
-        # BioTime a veces no incluye id en la respuesta del PUT; lo obtenemos por ID directo
+        # BioTime a veces no incluye id en la respuesta del PATCH; lo obtenemos por ID directo
         if response_data.get("id"):
             empleado = EmployeeDto(**response_data)
         else:

@@ -7,7 +7,7 @@ from typing import Any, Optional
 import httpx
 
 from app.core.config import settings
-from app.core.exceptions import BioTimeAuthenticationError, BioTimeConnectionError
+from app.core.exceptions import BioTimeAuthenticationError, BioTimeConnectionError, BioTimeNotFoundError
 from app.schemas.biotime.auth import LoginRequest, LoginResponse
 
 
@@ -140,11 +140,14 @@ class BioTimeClient:
                 import re
                 clean = re.sub(r"<[^>]+>", " ", body)
                 clean = " ".join(clean.split())
-                detalle = clean[:200] if clean else f"HTTP {status}"
+                detalle = clean[:500] if clean else f"HTTP {status}"
             else:
-                detalle = body[:200]
-            print(f"[BioTime] ERROR - HTTP {status} en {method} {endpoint}: {detalle}")
-            raise BioTimeConnectionError(f"Error HTTP {status}: {detalle}")
+                detalle = body
+            print(f"[BioTime] ERROR - HTTP {status} en {method} {endpoint}:")
+            print(f"[BioTime] Cuerpo completo: {detalle}")
+            if status == 404:
+                raise BioTimeNotFoundError(f"No encontrado: {endpoint}")
+            raise BioTimeConnectionError(f"Error HTTP {status}: {detalle[:200]}")
         except httpx.RequestError as e:
             print(f"[BioTime] ERROR - Sin conexión en {method} {endpoint}: {e}")
             raise BioTimeConnectionError(f"Error de conexión: {str(e)}")

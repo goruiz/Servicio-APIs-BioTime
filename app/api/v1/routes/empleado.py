@@ -35,6 +35,30 @@ async def obtener_empleados(
         raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})
 
 
+@router.get("/por-codigo", response_model=EmployeeDto)
+async def obtener_empleado_por_emp_code(
+    service: EmpleadoDependencia,
+    emp_code: str = Query(..., description="Código del empleado (emp_code)"),
+):
+    """Busca un empleado por su código (emp_code)."""
+    try:
+        empleado = await service.buscar_por_emp_code(emp_code=emp_code)
+        if not empleado:
+            raise HTTPException(status_code=404, detail={"error": f"Empleado con emp_code '{emp_code}' no encontrado", "status_code": 404})
+        return empleado
+
+    except HTTPException:
+        raise
+
+    except BioTimeException as e:
+        print(f"[Empleado] ERROR - GET /empleados/por-codigo?emp_code={emp_code}: {e.message} (HTTP {e.status_code})")
+        raise HTTPException(status_code=e.status_code, detail={"error": e.message, "status_code": e.status_code})
+
+    except Exception as e:
+        print(f"[Empleado] ERROR - GET /empleados/por-codigo?emp_code={emp_code}: {e}")
+        raise HTTPException(status_code=500, detail={"error": "Error interno del servidor", "detail": str(e)})
+
+
 @router.get("/{empleado_id}", response_model=EmployeeDto)
 async def obtener_empleado_por_id(
     service: EmpleadoDependencia,

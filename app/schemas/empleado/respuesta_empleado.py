@@ -63,6 +63,7 @@ class EmployeeDto(BaseDto):
     department: Optional[Union[DepartmentDto, int]] = Field(None, description="Departamento del empleado")
     position: Optional[Union[PositionDto, int]] = Field(None, description="Posición del empleado")
     hire_date: Optional[str] = Field(None, description="Fecha de contratación")
+    card_no: Optional[str] = Field(None, description="Número de tarjeta del empleado")
 
     model_config = ConfigDict(
         json_schema_extra={
