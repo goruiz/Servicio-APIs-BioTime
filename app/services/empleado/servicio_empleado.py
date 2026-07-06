@@ -45,6 +45,12 @@ class ServicioEmpleado(IEmpleado):
             return None
         return EmployeeDto(**empleados[0])
 
+    async def buscar_raw_por_emp_code(self, emp_code: str) -> Optional[dict]:
+        """Retorna el dict crudo del empleado desde BioTime, con todos sus campos."""
+        response_data = await self._client.get("personnel/api/employees/", params={"emp_code": emp_code})
+        empleados = response_data.get("data", [])
+        return empleados[0] if empleados else None
+
     async def _actualizar_campos_bd(self, empleado_id: int, datos: EmpleadoCreateUpdateDto) -> None:
         """Actualiza card_no y device_password en PostgreSQL (la API REST de BioTime no acepta estos campos)."""
         if not self._repositorio or not (datos.card_no or datos.device_password):
@@ -75,12 +81,26 @@ class ServicioEmpleado(IEmpleado):
         await self._actualizar_campos_bd(empleado.id, datos)
         return empleado
 
-    async def actualizar_empleado(self, empleado_id: int, datos: EmpleadoCreateUpdateDto) -> EmployeeDto:
-        body = datos.model_dump(exclude_none=True, exclude={"card_no", "device_password", "area"})
-        response_data = await self._client.patch(
-            f"personnel/api/employees/{empleado_id}/", json=body
+    async def actualizar_empleado(self, empleado_id: int, datos: EmpleadoCreateUpdateDto, datos_actuales: Optional[dict] = None) -> EmployeeDto:
+        # Usar datos pre-cargados si vienen, si no hacer GET para preservar todos los campos
+        actual = datos_actuales or await self._client.get(f"personnel/api/employees/{empleado_id}/")
+
+        # Normalizar campos anidados a IDs para el PUT
+        if isinstance(actual.get("department"), dict):
+            actual["department"] = actual["department"]["id"]
+        if isinstance(actual.get("position"), dict) and actual.get("position"):
+            actual["position"] = actual["position"]["id"]
+        if isinstance(actual.get("area"), list):
+            actual["area"] = [a["id"] if isinstance(a, dict) else a for a in actual["area"]]
+
+        # Sobreescribir solo los campos que vienen en la tarea (no None)
+        actualizaciones = datos.model_dump(exclude_none=True, exclude={"device_password"})
+        actual.update(actualizaciones)
+
+        response_data = await self._client.put(
+            f"personnel/api/employees/{empleado_id}/", json=actual
         )
-        # BioTime a veces no incluye id en la respuesta del PATCH; lo obtenemos por ID directo
+        # BioTime a veces no incluye id en la respuesta del PUT; lo obtenemos por ID directo
         if response_data.get("id"):
             empleado = EmployeeDto(**response_data)
         else:

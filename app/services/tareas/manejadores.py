@@ -20,6 +20,7 @@ Instrucciones y servicio que utilizan:
 """
 import datetime
 import json
+from typing import Optional
 
 from app.clients.biotime_client import BioTimeClient
 from app.core.config import settings
@@ -290,17 +291,33 @@ async def ejecutar_empdel(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 
 
 # Actualiza los datos de un empleado en BioTime. detalle: "emp_code|nombre|admin|tarjeta"
-async def ejecutar_empudt(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
+# Reglas de merge con el estado actual en BioTime:
+#   - campo con valor real  → actualizar
+#   - campo ausente o "0"   → preservar el valor existente
+#   - campo vacío ("")      → limpiar (enviar vacío a BioTime)
+async def ejecutar_empudt(tarea: TareaDto, client: BioTimeClient, cache_empleados: Optional[dict] = None) -> CompletarTarea:
     emp_code, datos = _parsear_datos_empleado(tarea.detalle, settings)
     print(f"[EMPUDT] emp_code={emp_code} | nombre={datos.first_name} {datos.last_name}")
     service = _servicio_empleado(client)
-    empleado = await service.buscar_por_emp_code(emp_code)
-    if empleado:
-        await service.actualizar_empleado(empleado_id=empleado.id, datos=datos)
-        print(f"[Tareas] EMPUDT — actualizado emp_code={emp_code} ID BioTime={empleado.id}")
-        await _servicio_sincronizacion(client).sincronizar()
-    else:
+    empleado_raw = cache_empleados.get(emp_code) if cache_empleados else None
+    if empleado_raw is None:
+        empleado_raw = await service.buscar_raw_por_emp_code(emp_code)
+    if not empleado_raw:
         print(f"[Tareas] AVISO - EMPUDT emp_code={emp_code}: no encontrado en BioTime")
+        return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
+
+    partes = tarea.detalle.split("|")
+    card_no_raw = partes[3] if len(partes) > 3 else None
+
+    if card_no_raw is None or card_no_raw.strip() == "0":
+        datos.card_no = empleado_raw.get("card_no")
+    elif card_no_raw.strip() == "":
+        datos.card_no = ""
+
+    empleado_id = empleado_raw["id"]
+    await service.actualizar_empleado(empleado_id=empleado_id, datos=datos, datos_actuales=empleado_raw)
+    print(f"[Tareas] EMPUDT — actualizado emp_code={emp_code} ID BioTime={empleado_id}")
+    await _servicio_sincronizacion(client).sincronizar()
     return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
@@ -351,10 +368,13 @@ _MANEJADORES = {
 
 
 # Despacha la tarea al manejador correspondiente
-async def ejecutar(tarea: TareaDto, client: BioTimeClient) -> CompletarTarea:
+async def ejecutar(tarea: TareaDto, client: BioTimeClient, cache_empleados: Optional[dict] = None) -> CompletarTarea:
     manejador = _MANEJADORES.get(tarea.instruccion)
     if not manejador:
         print(f"[Tareas] AVISO - Instruccion desconocida: {tarea.instruccion} (ID={tarea.id_tarea})")
         return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
+
+    if tarea.instruccion == "EMPUDT":
+        return await ejecutar_empudt(tarea, client, cache_empleados=cache_empleados)
 
     return await manejador(tarea, client)

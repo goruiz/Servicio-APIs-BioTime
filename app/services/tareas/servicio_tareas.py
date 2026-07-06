@@ -15,6 +15,7 @@ from app.core.notificaciones import notificar
 from app.core.scheduler import scheduler
 from app.services.tareas import manejadores
 from app.services.tareas.interface_tareas import ITareas, TareaPendiente
+from app.services.empleado.servicio_empleado import ServicioEmpleado
 
 _preciso_client = PrecisoClient()
 _biotime_client = BioTimeClient()
@@ -106,6 +107,20 @@ class ServicioTareas(ITareas):
             print("[Tareas] Modo solo lectura — tareas no ejecutadas (UNICAMENTE_LEER_TAREAS=True)")
             return
 
+        # Pre-cargar datos de empleados para todas las tareas EMPUDT del lote
+        cache_empleados = {}
+        emp_codes_empudt = {
+            t.detalle.split("|")[0]
+            for t in tareas
+            if t.instruccion == "EMPUDT"
+        }
+        if emp_codes_empudt:
+            service = ServicioEmpleado(self._biotime)
+            for emp_code in emp_codes_empudt:
+                raw = await service.buscar_raw_por_emp_code(emp_code)
+                if raw:
+                    cache_empleados[emp_code] = raw
+
         for i, tarea in enumerate(tareas, 1):
             header = (
                 f"[Tareas] ── [{i}/{total}] "
@@ -121,6 +136,7 @@ class ServicioTareas(ITareas):
                 payload = await manejadores.ejecutar(
                     tarea,
                     self._biotime,
+                    cache_empleados=cache_empleados,
                 )
 
                 respuesta = await self._preciso.completar_tarea(payload)
