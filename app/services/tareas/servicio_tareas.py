@@ -156,11 +156,12 @@ class ServicioTareas(ITareas):
             if ultimo_intento is not None:
                 transcurrido = time.monotonic() - ultimo_intento
                 if transcurrido < cooldown:
-                    restante = int(cooldown - transcurrido)
+                    restante_seg = int(cooldown - transcurrido)
+                    restante_min = -(-restante_seg // 60)  # redondeo hacia arriba
                     print(
                         f"[Tareas] EN ESPERA - Tarea ID={tarea.id_tarea} "
                         f"({tarea.instruccion}) sigue con el mismo error; "
-                        f"se reintentará en {restante}s (sigue pendiente en Preciso)"
+                        f"se reintentará en {restante_min} min (sigue pendiente en Preciso)"
                     )
                     continue
 
