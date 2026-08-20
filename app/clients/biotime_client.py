@@ -7,8 +7,18 @@ from typing import Any, Optional
 import httpx
 
 from app.core.config import settings
-from app.core.exceptions import BioTimeAuthenticationError, BioTimeConnectionError, BioTimeNotFoundError
+from app.core.exceptions import (
+    BioTimeAuthenticationError,
+    BioTimeConnectionError,
+    BioTimeNotFoundError,
+    BioTimeValidationError,
+)
 from app.schemas.biotime.auth import LoginRequest, LoginResponse
+
+# BioTime devuelve este mensaje genérico ante rechazos de datos (ej. card_no
+# duplicado, FK inválida de department/area) con status HTTP 500, aunque no
+# se trate de una falla de conexión ni de disponibilidad del servicio.
+_MENSAJE_GENERICO_BIOTIME = "operation you selected is not working properly"
 
 
 class BioTimeClient:
@@ -147,6 +157,12 @@ class BioTimeClient:
             print(f"[BioTime] Cuerpo completo: {detalle}")
             if status == 404:
                 raise BioTimeNotFoundError(f"No encontrado: {endpoint}")
+            # BioTime responde con 400/422 ante datos inválidos, y con un 500
+            # "genérico" ante rechazos de negocio (ej. card_no duplicado).
+            # Ninguno de estos casos es un problema de conexión: reintentar
+            # con el mismo payload va a fallar siempre igual.
+            if status in (400, 422) or _MENSAJE_GENERICO_BIOTIME in detalle.lower():
+                raise BioTimeValidationError(f"BioTime rechazó los datos (HTTP {status}): {detalle[:200]}")
             raise BioTimeConnectionError(f"Error HTTP {status}: {detalle[:200]}")
         except httpx.RequestError as e:
             print(f"[BioTime] ERROR - Sin conexión en {method} {endpoint}: {e}")

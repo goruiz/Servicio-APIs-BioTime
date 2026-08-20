@@ -89,6 +89,7 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str = Field(default="", description="Token del bot de Telegram (vacío = notificaciones desactivadas)")
     TELEGRAM_CHAT_ID: str = Field(default="", description="Chat ID o canal de Telegram destino de las notificaciones")
     ENVIA_NOTIFICACIONES_TELEGRAM: bool = Field(default=False, description="Habilita el envío de notificaciones por Telegram")
+    TAREAS_NOTIFICACION_COOLDOWN_SEGUNDOS: int = Field(default=1800, description="Tiempo mínimo, en segundos, que debe pasar antes de reintentar una tarea (instruccion+detalle) que falló, y antes de volver a notificar por Telegram si sigue fallando. Mientras dura el cooldown, la tarea se omite en cada ciclo de polling sin ejecutarse ni perderse — sigue pendiente en Preciso — y se reintenta automáticamente al cumplirse el plazo")
 
 
 # Instancia global de configuración

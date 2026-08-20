@@ -2,6 +2,7 @@
 Servicio principal de procesamiento de tareas de Preciso.
 Se registra en el scheduler para ejecutarse periódicamente.
 """
+import time
 from datetime import datetime
 
 from app.clients.biotime_client import BioTimeClient
@@ -56,6 +57,12 @@ class ServicioTareas(ITareas):
         self._preciso = preciso_client
         self._biotime = biotime_client
         self._error_preciso_activo = False  # True mientras Preciso no responde
+        # Tareas que vienen fallando con el mismo error, indexadas por "instruccion:detalle".
+        # Mientras no pase TAREAS_NOTIFICACION_COOLDOWN_SEGUNDOS desde el último intento,
+        # la tarea se omite: no se vuelve a ejecutar contra BioTime ni se re-notifica por
+        # Telegram. Preciso sigue reencolándola en cada ciclo (no se pierde) y se reintenta
+        # sola al cumplirse el plazo — si para entonces el problema ya se corrigió, se completa.
+        self._tareas_en_espera: dict[str, float] = {}
 
     async def procesar_tareas(self) -> None:
         """
@@ -116,10 +123,20 @@ class ServicioTareas(ITareas):
         }
         if emp_codes_empudt:
             service = ServicioEmpleado(self._biotime)
-            for emp_code in emp_codes_empudt:
-                raw = await service.buscar_raw_por_emp_code(emp_code)
-                if raw:
-                    cache_empleados[emp_code] = raw
+            try:
+                for emp_code in emp_codes_empudt:
+                    raw = await service.buscar_raw_por_emp_code(emp_code)
+                    if raw:
+                        cache_empleados[emp_code] = raw
+            except Exception as e:
+                # El precache es solo una optimización: si BioTime falla acá,
+                # cada EMPUDT hace su propio fetch individual (ver ejecutar_empudt),
+                # ya cubierto por el manejo de errores por-tarea más abajo.
+                print(f"[Tareas] AVISO - Precache de empleados falló, se continúa sin cache: {e}")
+
+        # Frases en lenguaje claro (sin jerga técnica) de los empleados que no se
+        # pudieron crear/actualizar en este ciclo, para el resumen final al usuario.
+        resumenes_fallos: list[str] = []
 
         for i, tarea in enumerate(tareas, 1):
             header = (
@@ -131,6 +148,21 @@ class ServicioTareas(ITareas):
                 f"\n{header}"
                 f"{'─' * max(0, TAMANO_SEPARADOR - len(header))}"
             )
+
+            clave_tarea = f"{tarea.instruccion}:{tarea.detalle}"
+            cooldown = settings.TAREAS_NOTIFICACION_COOLDOWN_SEGUNDOS
+
+            ultimo_intento = self._tareas_en_espera.get(clave_tarea)
+            if ultimo_intento is not None:
+                transcurrido = time.monotonic() - ultimo_intento
+                if transcurrido < cooldown:
+                    restante = int(cooldown - transcurrido)
+                    print(
+                        f"[Tareas] EN ESPERA - Tarea ID={tarea.id_tarea} "
+                        f"({tarea.instruccion}) sigue con el mismo error; "
+                        f"se reintentará en {restante}s (sigue pendiente en Preciso)"
+                    )
+                    continue
 
             try:
                 payload = await manejadores.ejecutar(
@@ -153,6 +185,9 @@ class ServicioTareas(ITareas):
                 else:
                     print(f"[Tareas] Completado | Preciso: OK")
 
+                # Éxito: si esta misma tarea había estado fallando, se libera de la espera
+                self._tareas_en_espera.pop(clave_tarea, None)
+
             except TareaPendiente as e:
                 print(f"[Tareas] PENDIENTE - {e}")
 
@@ -167,11 +202,27 @@ class ServicioTareas(ITareas):
                     f"[Tareas] ERROR - Tarea ID={tarea.id_tarea} "
                     f"({tarea.instruccion}): {e}"
                 )
+                resumen_usuario = getattr(e, "resumen_usuario", None)
+                if resumen_usuario:
+                    resumenes_fallos.append(resumen_usuario)
+
+                # Marca la tarea en espera: recién llegados a este punto significa que
+                # o es la primera falla, o ya pasó el cooldown y se reintentó — en
+                # ambos casos corresponde (re)iniciar el plazo de espera y notificar.
+                self._tareas_en_espera[clave_tarea] = time.monotonic()
+
                 if settings.ENVIA_NOTIFICACIONES_TELEGRAM == True:
                     await notificar(
                         f"Error en tarea {tarea.instruccion} #{tarea.id_tarea}",
                         f"IP: {tarea.ip}\nDetalle: {tarea.detalle}\n\n{type(e).__name__}: {e}",
                     )
+
+        if resumenes_fallos and settings.ENVIA_NOTIFICACIONES_TELEGRAM == True:
+            cuerpo = "\n\n".join(f"• {r}" for r in resumenes_fallos)
+            await notificar(
+                f"{len(resumenes_fallos)} empleado(s) no se pudieron actualizar en este ciclo",
+                cuerpo,
+            )
 
 # ------------------------------------------------------------------
 # Registro en el scheduler global

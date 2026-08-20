@@ -24,6 +24,7 @@ from typing import Optional
 
 from app.clients.biotime_client import BioTimeClient
 from app.core.config import settings
+from app.core.exceptions import BioTimeValidationError
 from app.db.conexion import obtener_pool
 from app.interfaces.sincronizacion.interface_sincronizacion import (
     ISincronizacion,
@@ -252,6 +253,78 @@ async def ejecutar_rephue(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
     return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)
 
 
+# Arma un BioTimeValidationError diagnosticado al crear/actualizar un empleado.
+# Verifica contra la BD de BioTime la causa real (no una suposición): quién tiene ya el card_no,
+# o si department/area no existen. Si ninguna de esas verificaciones explica el rechazo, lo dice.
+# El error devuelto lleva además un atributo `resumen_usuario`: una frase en lenguaje claro,
+# sin jerga técnica, pensada para el resumen de fin de ciclo que lee el usuario final.
+async def _diagnostico_validacion_empleado(
+    emp_code: str,
+    empleado_id: Optional[int],
+    datos: EmpleadoCreateUpdateDto,
+    error: BioTimeValidationError,
+) -> BioTimeValidationError:
+    repositorio = RepositorioEmpleado(obtener_pool())
+    causas: list[str] = []
+    resumen_usuario: Optional[str] = None
+    nombre_destino = f"{datos.first_name} {datos.last_name or ''}".strip() or emp_code
+
+    if datos.card_no:
+        propietario = await repositorio.buscar_por_card_no(datos.card_no)
+        if propietario and propietario["id"] != empleado_id:
+            nombre = f"{propietario['first_name']} {propietario['last_name'] or ''}".strip()
+            causas.append(
+                f"card_no='{datos.card_no}' ya está asignado a emp_code={propietario['emp_code']} "
+                f"({nombre}, ID BioTime={propietario['id']})"
+            )
+            resumen_usuario = (
+                f"{nombre_destino} (código {emp_code}): no se pudo actualizar porque la tarjeta "
+                f"'{datos.card_no}' ya está asignada a {nombre} (código {propietario['emp_code']})."
+            )
+
+    if datos.department is not None:
+        nombre_depto = await repositorio.nombre_departamento(datos.department)
+        if not nombre_depto:
+            causas.append(f"department={datos.department} no existe en BioTime")
+            if resumen_usuario is None:
+                resumen_usuario = (
+                    f"{nombre_destino} (código {emp_code}): no se pudo actualizar porque el "
+                    f"departamento asignado no existe en BioTime."
+                )
+
+    if datos.area:
+        faltantes = await repositorio.areas_inexistentes(datos.area)
+        if faltantes:
+            causas.append(f"area(s) {faltantes} no existen en BioTime")
+            if resumen_usuario is None:
+                resumen_usuario = (
+                    f"{nombre_destino} (código {emp_code}): no se pudo actualizar porque el "
+                    f"área asignada no existe en BioTime."
+                )
+
+    if causas:
+        causa = " | ".join(causas)
+    else:
+        causa = "no se identificó automáticamente la causa (no es card_no ni department/area) — revisar el registro manualmente en BioTime"
+        resumen_usuario = (
+            f"{nombre_destino} (código {emp_code}): no se pudo actualizar por un motivo que no "
+            f"se identificó automáticamente; se recomienda revisarlo manualmente."
+        )
+
+    id_str = f" (ID BioTime={empleado_id})" if empleado_id else ""
+    # Línea dedicada e independiente del resumen de error genérico que imprime
+    # servicio_tareas.py, para que la causa real quede visible debajo del problema
+    # sin tener que leer el mensaje de excepción completo.
+    print(f"[Tareas] DIAGNÓSTICO - emp_code={emp_code}{id_str}: {causa}")
+
+    error_final = BioTimeValidationError(
+        f"BioTime rechazó los datos de emp_code={emp_code}{id_str}. "
+        f"{causa}. Detalle BioTime: {error}"
+    )
+    error_final.resumen_usuario = resumen_usuario
+    return error_final
+
+
 # Manejadores de empleados
 
 
@@ -262,11 +335,15 @@ async def ejecutar_empdat(tarea: TareaDto, client: BioTimeClient) -> CompletarTa
 
     service = _servicio_empleado(client)
     empleado = await service.buscar_por_emp_code(emp_code)
-    
-    if empleado:
-        await service.actualizar_empleado(empleado_id=empleado.id, datos=datos_entrantes)
-    else:
-        await service.crear_empleado(datos=datos_entrantes)
+
+    try:
+        if empleado:
+            await service.actualizar_empleado(empleado_id=empleado.id, datos=datos_entrantes)
+        else:
+            await service.crear_empleado(datos=datos_entrantes)
+    except BioTimeValidationError as e:
+        empleado_id = empleado.id if empleado else None
+        raise await _diagnostico_validacion_empleado(emp_code, empleado_id, datos_entrantes, e) from e
     await _servicio_sincronizacion(client).sincronizar()
     return CompletarTarea(
         id_tarea=tarea.id_tarea,
@@ -315,7 +392,10 @@ async def ejecutar_empudt(tarea: TareaDto, client: BioTimeClient, cache_empleado
         datos.card_no = ""
 
     empleado_id = empleado_raw["id"]
-    await service.actualizar_empleado(empleado_id=empleado_id, datos=datos, datos_actuales=empleado_raw)
+    try:
+        await service.actualizar_empleado(empleado_id=empleado_id, datos=datos, datos_actuales=empleado_raw)
+    except BioTimeValidationError as e:
+        raise await _diagnostico_validacion_empleado(emp_code, empleado_id, datos, e) from e
     print(f"[Tareas] EMPUDT — actualizado emp_code={emp_code} ID BioTime={empleado_id}")
     await _servicio_sincronizacion(client).sincronizar()
     return CompletarTarea(id_tarea=tarea.id_tarea, instruccion=tarea.instruccion)

@@ -1,7 +1,8 @@
 """
 Repositorio de empleados.
 Ejecuta queries SQL directamente sobre la tabla personnel_employee de BioTime
-para campos que la API REST no permite escribir (ej: card_no).
+para campos que la API REST no permite escribir (ej: card_no), y para
+diagnosticar rechazos de BioTime (card_no duplicado, department/area inexistente).
 """
 from typing import Optional
 
@@ -12,6 +13,35 @@ class RepositorioEmpleado:
 
     def __init__(self, pool: asyncpg.Pool) -> None:
         self._pool = pool
+
+    async def buscar_por_card_no(self, card_no: str) -> Optional[dict]:
+        """Retorna el empleado (id, emp_code, first_name, last_name) que actualmente
+        tiene asignado ese card_no en BioTime, o None si ninguno lo tiene."""
+        async with self._pool.acquire() as conn:
+            fila = await conn.fetchrow(
+                "SELECT id, emp_code, first_name, last_name FROM personnel_employee WHERE card_no = $1",
+                card_no,
+            )
+            return dict(fila) if fila else None
+
+    async def nombre_departamento(self, department_id: int) -> Optional[str]:
+        """Retorna el nombre del departamento si existe en BioTime, o None si no."""
+        async with self._pool.acquire() as conn:
+            fila = await conn.fetchrow(
+                "SELECT dept_name FROM personnel_department WHERE id = $1", department_id
+            )
+            return fila["dept_name"] if fila else None
+
+    async def areas_inexistentes(self, area_ids: list[int]) -> list[int]:
+        """Retorna los IDs de `area_ids` que NO existen en BioTime."""
+        if not area_ids:
+            return []
+        async with self._pool.acquire() as conn:
+            filas = await conn.fetch(
+                "SELECT id FROM personnel_area WHERE id = ANY($1::int[])", area_ids
+            )
+            existentes = {f["id"] for f in filas}
+            return [a for a in area_ids if a not in existentes]
 
     async def actualizar_campos_bd(
         self,
